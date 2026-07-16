@@ -1,12 +1,14 @@
 package com.Chrianto.TicketingSystem.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
-@Table(name = "department")
+@Table(name = "problem_category")
 @Getter @Setter @NoArgsConstructor
-public class Department {
+public class ProblemType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -14,8 +16,4 @@ public class Department {
     @Column(nullable = false, unique = true)
     private String name;
 
-//    @Column(name = "default_number")
-//    private String defaultNumber; // optional, nullable by default
-//
-//    private boolean active = true;
 }

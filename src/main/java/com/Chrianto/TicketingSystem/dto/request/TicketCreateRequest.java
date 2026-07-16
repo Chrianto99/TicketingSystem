@@ -18,6 +18,9 @@ public class TicketCreateRequest {
     @NotNull
     private Long departmentId;
 
+    @NotNull
+    private Long problemTypeId;
+
     @Pattern(
             regexp = "^((25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d?\\d)$",
             message = "IP address must follow IPv4 pattern"

@@ -23,6 +23,7 @@ public class TicketService {
     private final DepartmentRepository departmentRepository;
     private final TicketHistoryRepository historyRepository;
     private final CommentRepository commentRepository;
+    private final ProblemTypeRepository problemTypeRepository;
 
     public TicketResponse createTicket(TicketCreateRequest req) {
         User creator = userRepository.findById(req.getCreatorId())
@@ -34,11 +35,15 @@ public class TicketService {
         Department department = departmentRepository.findById(req.getDepartmentId())
                 .orElseThrow(() -> new EntityNotFoundException("Department not found"));
 
+        ProblemType problemType = problemTypeRepository.findById(req.getProblemTypeId())
+                .orElseThrow(() -> new EntityNotFoundException("ProblemType not found"));
+
         Ticket ticket = new Ticket();
         ticket.setCreator(creator);
         ticket.setAssignedUser(assignee);
         ticket.setLastModifiedBy(creator);
         ticket.setDepartment(department);
+        ticket.setProblemType(problemType);
         ticket.setPhoneNumber(req.getPhoneNumber());
         ticket.setIpAddress(req.getIpAddress());
         ticket.setDescription(req.getDescription());
@@ -161,12 +166,13 @@ public class TicketService {
     }
 
 
-
     public TicketResponse getTicketById(Long ticketId) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
         return toResponse(ticket);
     }
+
+
 
 
     private void logHistory(Ticket ticket, User performedBy, TicketAction ticketAction,
@@ -222,6 +228,8 @@ public class TicketService {
                 .assignedUsername(t.getAssignedUser() != null ? t.getAssignedUser().getUsername() : null)
                 .departmentId(t.getDepartment().getId())
                 .departmentName(t.getDepartment().getName())
+                .problemTypeId(t.getProblemType().getId())
+                .problemType(t.getProblemType().getName())
                 .status(t.getStatus())
                 .priority(t.getPriority())
                 .phoneNumber(t.getPhoneNumber())

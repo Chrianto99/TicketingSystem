@@ -27,6 +27,9 @@ public class Ticket {
     @ManyToOne @JoinColumn(name = "department_id", nullable = false)
     private Department department;
 
+    @ManyToOne @JoinColumn(name = "problem_category_id", nullable = false)
+    private ProblemType problemType;
+
     @Enumerated(EnumType.STRING)
     private TicketStatus status;
 

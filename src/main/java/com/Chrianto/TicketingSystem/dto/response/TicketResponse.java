@@ -15,6 +15,8 @@ public class TicketResponse {
     private String assignedUsername;
     private Long departmentId;
     private String departmentName;
+    private Long problemTypeId;
+    private String problemType;
     private TicketStatus status;
     private TicketPriority priority;
     private String phoneNumber;

@@ -25,4 +25,10 @@ public class GlobalExceptionHandler {
                 .forEach(err -> errors.put(err.getField(), err.getDefaultMessage()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", ex.getMessage()));
+    }
 }

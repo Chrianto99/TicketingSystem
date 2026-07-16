@@ -17,12 +17,6 @@ public class UserController {
 
     private final UserService userService;
 
-    @PostMapping
-    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserCreateRequest req){
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(req));
-
-    }
-
     @GetMapping("/{userId}")
     public ResponseEntity<UserResponse> getTicketById(@PathVariable Long userId) {
         return ResponseEntity.ok(userService.getUserById(userId));
