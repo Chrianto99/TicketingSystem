@@ -1,0 +1,22 @@
+package com.Chrianto.TicketingSystem.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "department")
+@Getter
+@Setter @NoArgsConstructor
+public class Department {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String name;
+
+//    @Column(name = "default_number")
+//    private String defaultNumber; // optional, nullable by default
+//
+//    private boolean active = true;
+}

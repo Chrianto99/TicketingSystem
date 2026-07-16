@@ -1,0 +1,25 @@
+package com.Chrianto.TicketingSystem.dto.response;
+
+import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
+import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Getter @Setter @Builder
+public class TicketResponse {
+    private Long id;
+    private Long creatorId;
+    private String creatorUsername;
+    private Long assignedUserId;
+    private String assignedUsername;
+    private Long departmentId;
+    private String departmentName;
+    private TicketStatus status;
+    private TicketPriority priority;
+    private String phoneNumber;
+    private String ipAddress;
+    private String description;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
