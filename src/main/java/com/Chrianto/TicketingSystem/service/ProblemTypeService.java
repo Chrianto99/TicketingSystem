@@ -7,6 +7,8 @@ import com.Chrianto.TicketingSystem.repository.ProblemTypeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ProblemTypeService {
@@ -22,10 +24,19 @@ public class ProblemTypeService {
         return toResponse(problemType);
     }
 
+    public List<ProblemTypeResponse> getAllProblemTypes(){
+        return problemTypeRepository.findAll().
+                stream().
+                map(this::toResponse).
+                toList();
+    }
+
     private ProblemTypeResponse toResponse(ProblemType problemType) {
         return ProblemTypeResponse.builder()
                 .id(problemType.getId())
                 .name(problemType.getName())
                 .build();
     }
+
+
 }

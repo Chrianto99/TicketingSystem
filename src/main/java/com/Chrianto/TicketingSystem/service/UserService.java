@@ -8,19 +8,18 @@ import com.Chrianto.TicketingSystem.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
 
-    public UserResponse createUser(UserCreateRequest req){
-
-        User user = new User();
-        user.setUsername(req.getUsername());
-
-        user = userRepository.save(user);
-
-        return toResponse(user);
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll().
+                stream().
+                map(this::toResponse)
+                .toList();
     }
 
     public UserResponse getUserById(Long userId){

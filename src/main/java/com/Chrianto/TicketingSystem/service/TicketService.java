@@ -1,7 +1,8 @@
 package com.Chrianto.TicketingSystem.service;
 
 import com.Chrianto.TicketingSystem.dto.request.TicketCreateRequest;
-import com.Chrianto.TicketingSystem.dto.request.TicketResolveRequest;
+import com.Chrianto.TicketingSystem.dto.request.TicketChangeStatusRequest;
+import com.Chrianto.TicketingSystem.dto.request.TicketReassignRequest;
 import com.Chrianto.TicketingSystem.dto.response.TicketResponse;
 import com.Chrianto.TicketingSystem.entity.*;
 import com.Chrianto.TicketingSystem.entity.enums.TicketAction;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 
 @Service
@@ -21,9 +23,10 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
-    private final TicketHistoryRepository historyRepository;
     private final CommentRepository commentRepository;
     private final ProblemTypeRepository problemTypeRepository;
+
+    private final TicketHistoryService ticketHistoryService;
 
     public TicketResponse createTicket(TicketCreateRequest req) {
         User creator = userRepository.findById(req.getCreatorId())
@@ -48,33 +51,22 @@ public class TicketService {
         ticket.setIpAddress(req.getIpAddress());
         ticket.setDescription(req.getDescription());
         ticket.setStatus(TicketStatus.OPEN);
-        ticket.setPriority(req.getPriority()); // sensible default until you add it to the request
+        ticket.setPriority(req.getPriority());
         ticket.setCreatedAt(LocalDateTime.now());
         ticket.setUpdatedAt(LocalDateTime.now());
 
         ticket = ticketRepository.save(ticket);
 
-        Comment comment = null;
+        Comment comment = postComment(ticket, creator, req.getCommentText());
 
-        if (req.getCommentText() != null && !req.getCommentText().isBlank()) {
-            comment = new Comment();
-            comment.setText(req.getCommentText());
-            comment.setUser(creator);
-            comment.setTicket(ticket);
-            comment.setTimestamp(LocalDateTime.now());
-
-            comment = commentRepository.save(comment);
-        }
-
-        logHistory(ticket, creator, TicketAction.CREATED, assignee, comment);
-        logHistory(ticket, creator, TicketAction.ASSIGNED, assignee, comment);
+        ticketHistoryService.logHistory(ticket, creator, TicketAction.CREATED, null, null);
+        ticketHistoryService.logHistory(ticket, creator, TicketAction.ASSIGNED, assignee, comment);
 
 
         return toResponse(ticket);
     }
 
-
-    public TicketResponse resolveTicket(Long ticketId, TicketResolveRequest req) {
+    public TicketResponse resolveTicket(Long ticketId, TicketChangeStatusRequest req) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
 
@@ -89,24 +81,21 @@ public class TicketService {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
         }
 
-        Comment comment = new Comment();
-        comment.setText(req.getCommentText());
-        comment.setUser(performedBy);
-        comment.setTicket(ticket);
-        comment.setTimestamp(LocalDateTime.now());
-        comment = commentRepository.save(comment);
+        Comment comment = postComment(ticket, performedBy, req.getCommentText());
 
         ticket.setStatus(TicketStatus.RESOLVED);
         ticket.setLastModifiedBy(performedBy);
         ticket.setUpdatedAt(LocalDateTime.now());
         ticket = ticketRepository.save(ticket);
 
-        logHistory(ticket, performedBy, TicketAction.RESOLVED, null, comment);
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.RESOLVED, null, comment);
 
         return toResponse(ticket);
     }
 
-    public TicketResponse cancelTicket(Long ticketId, TicketResolveRequest req) {
+
+
+    public TicketResponse cancelTicket(Long ticketId, TicketChangeStatusRequest req) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
 
@@ -121,24 +110,21 @@ public class TicketService {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
         }
 
-        Comment comment = new Comment();
-        comment.setText(req.getCommentText());
-        comment.setUser(performedBy);
-        comment.setTicket(ticket);
-        comment.setTimestamp(LocalDateTime.now());
-        comment = commentRepository.save(comment);
+        Comment comment = postComment(ticket, performedBy, req.getCommentText());
 
         ticket.setStatus(TicketStatus.RESOLVED);
         ticket.setLastModifiedBy(performedBy);
         ticket.setUpdatedAt(LocalDateTime.now());
         ticket = ticketRepository.save(ticket);
 
-        logHistory(ticket, performedBy, TicketAction.CANCELLED, null, comment);
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.CANCELLED, null, comment);
 
         return toResponse(ticket);
     }
 
-    public TicketResponse commentOnTicket(Long ticketId, TicketResolveRequest req) {
+
+
+    public TicketResponse commentOnTicket(Long ticketId, TicketChangeStatusRequest req) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
 
@@ -153,18 +139,60 @@ public class TicketService {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
         }
 
+        Comment comment = postComment(ticket, performedBy, req.getCommentText());
+
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.COMMENT_ADDED, null, comment);
+
+        return toResponse(ticket);
+    }
+
+    public TicketResponse reassignTicket(Long ticketId, TicketReassignRequest req) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+
+        User performedBy = userRepository.findById(req.getPerformedBy())
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + req.getPerformedBy()));
+
+        User assignTo =  userRepository.findById(req.getAssignedTo())
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + req.getAssignedTo()));
+
+
+        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
+            throw new IllegalStateException("Only the assigned user can reassign this ticket");
+        }
+
+        if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
+            throw new IllegalStateException("Ticket is already " + ticket.getStatus());
+        }
+
+        Comment comment = postComment(ticket, performedBy, req.getCommentText());
+
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setLastModifiedBy(performedBy);
+        ticket.setUpdatedAt(LocalDateTime.now());
+        ticket.setAssignedUser(assignTo);
+        ticket = ticketRepository.save(ticket);
+
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.REASSIGNED, assignTo, comment);
+
+        return toResponse(ticket);
+    }
+
+
+    public Comment postComment(Ticket ticket, User performedBy, String commentText){
+        if (commentText == null || commentText.isEmpty()) {
+            throw new IllegalArgumentException("User must type a comment");
+        }
         Comment comment = new Comment();
-        comment.setText(req.getCommentText());
+        comment.setText(commentText);
         comment.setUser(performedBy);
         comment.setTicket(ticket);
         comment.setTimestamp(LocalDateTime.now());
         comment = commentRepository.save(comment);
 
-        logHistory(ticket, performedBy, TicketAction.COMMENT_ADDED, null, comment);
+        return comment;
 
-        return toResponse(ticket);
     }
-
 
     public TicketResponse getTicketById(Long ticketId) {
         Ticket ticket = ticketRepository.findById(ticketId)
@@ -172,53 +200,14 @@ public class TicketService {
         return toResponse(ticket);
     }
 
-
-
-
-    private void logHistory(Ticket ticket, User performedBy, TicketAction ticketAction,
-                            User assignedTo, Comment comment) {
-
-        TicketHistory h = new TicketHistory();
-        h.setTicket(ticket);
-        h.setPerformedBy(performedBy);
-        h.setAction(ticketAction);
-        h.setTimestamp(LocalDateTime.now());
-
-        switch (ticketAction) {
-            case CREATED -> {
-                // nothing extra to attach
-            }
-            case ASSIGNED, REASSIGNED -> {
-                if (assignedTo == null) {
-                    throw new IllegalArgumentException(ticketAction + " requires an assignedTo user");
-                }
-                h.setAssignedTo(assignedTo);
-                if (comment != null) {
-                    h.setComment(comment);
-                }
-            }
-            case RESOLVED -> {
-                if (comment != null) {
-                    h.setComment(comment);
-                }
-            }
-            case CANCELLED -> {
-                if (comment == null) {
-                    throw new IllegalArgumentException("CANCELLED requires a comment");
-                }
-                h.setComment(comment);
-            }
-            case COMMENT_ADDED -> {
-                if (comment == null) {
-                    throw new IllegalArgumentException("No comment typed");
-                }
-                h.setComment(comment);
-            }
-            default -> throw new IllegalArgumentException("Unhandled TicketAction: " + ticketAction);
-        }
-
-        historyRepository.save(h);
+    public List<TicketResponse> getAllTickets(){
+        return ticketRepository.findAll()
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
+
+
     private TicketResponse toResponse(Ticket t) {
         return TicketResponse.builder()
                 .id(t.getId())
@@ -239,4 +228,6 @@ public class TicketService {
                 .updatedAt(t.getUpdatedAt())
                 .build();
     }
+
+
 }

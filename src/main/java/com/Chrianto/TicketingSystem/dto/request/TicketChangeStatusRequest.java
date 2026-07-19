@@ -4,7 +4,7 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 
 @Getter @Setter
-public class TicketResolveRequest {
+public class TicketChangeStatusRequest {
 
     @NonNull
     private Long performedBy;

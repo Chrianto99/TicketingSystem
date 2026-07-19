@@ -17,16 +17,16 @@ public class TicketHistory {
     @OneToOne @JoinColumn(name = "comment_id")
     private Comment comment;
 
-    @ManyToOne @JoinColumn(name = "ticket_id")
+    @NonNull @ManyToOne @JoinColumn(name = "ticket_id")
     private Ticket ticket;
 
-    @ManyToOne @JoinColumn(name = "performed_by_id")
+    @NonNull @ManyToOne @JoinColumn(name = "performed_by_id")
     private User performedBy;
 
     @ManyToOne @JoinColumn(name = "assigned_to_id")
     private User assignedTo;
 
-    @Enumerated(EnumType.STRING)
+    @NonNull @Enumerated(EnumType.STRING)
     private TicketAction action;
 
     private LocalDateTime timestamp;
