@@ -6,9 +6,6 @@ import lombok.*;
 @Getter @Setter
 public class TicketChangeStatusRequest {
 
-    @NonNull
-    private Long performedBy;
-
     @NotBlank
     private String commentText;
 

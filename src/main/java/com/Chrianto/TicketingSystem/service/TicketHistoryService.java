@@ -19,8 +19,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TicketHistoryService {
 
-    TicketRepository ticketRepository;
-    TicketHistoryRepository ticketHistoryRepository;
+    private final TicketRepository ticketRepository;
+    private final TicketHistoryRepository ticketHistoryRepository;
+
+    public void deleteByTicketId(Long ticketId) {
+        ticketHistoryRepository.deleteByTicketId(ticketId);
+    }
 
     public List<TicketHistoryResponse> getTicketHistory(Long ticketId) {
         // confirm the ticket actually exists before querying its history
@@ -83,8 +87,8 @@ public class TicketHistoryService {
         return TicketHistoryResponse.builder()
                 .id(h.getId())
                 .action(h.getAction())
-                .performedById(h.getPerformedBy().getId())
-                .performedByUsername(h.getPerformedBy().getUsername())
+                .performedById(h.getPerformedBy() != null ? h.getPerformedBy().getId() : null)
+                .performedByUsername(h.getPerformedBy() != null ? h.getPerformedBy().getUsername() : null)
                 .assignedToId(h.getAssignedTo() != null ? h.getAssignedTo().getId() : null)
                 .assignedToUsername(h.getAssignedTo() != null ? h.getAssignedTo().getUsername() : null)
                 .commentId(h.getComment() != null ? h.getComment().getId() : null)

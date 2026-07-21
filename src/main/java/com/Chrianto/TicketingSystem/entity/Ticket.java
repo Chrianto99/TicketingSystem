@@ -24,11 +24,13 @@ public class Ticket {
     @ManyToOne @JoinColumn(name = "assigned_user_id")
     private User assignedUser;
 
-    @ManyToOne @JoinColumn(name = "department_id", nullable = false)
+    @ManyToOne @JoinColumn(name = "department_id")
     private Department department;
 
-    @ManyToOne @JoinColumn(name = "problem_category_id", nullable = false)
+    @ManyToOne @JoinColumn(name = "problem_category_id")
     private ProblemType problemType;
+
+    private String callerName;
 
     @Enumerated(EnumType.STRING)
     private TicketStatus status;

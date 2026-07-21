@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Tickets</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<main class="page">
+    <div class="page-header">
+        <h1>Tickets</h1>
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('create-ticket-modal').showModal()">+ New Ticket</button>
+    </div>
+
+    <form class="filters" method="get" th:action="@{/tickets}">
+        <select name="status" onchange="this.form.submit()">
+            <option value="">All statuses</option>
+            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${s == status}"></option>
+        </select>
+        <select name="priority" onchange="this.form.submit()">
+            <option value="">All priorities</option>
+            <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}" th:selected="${p == priority}"></option>
+        </select>
+        <a th:if="${status != null or priority != null}" th:href="@{/tickets}" class="btn">Clear filters</a>
+    </form>
+
+    <table class="ticket-table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Department</th>
+            <th>Assigned To</th>
+            <th>Created</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="ticket : ${ticketPage.content}" class="ticket-row" th:attr="data-ticket-id=${ticket.id}">
+            <td class="ticket-id" th:text="'#' + ${ticket.id}"></td>
+            <td class="ticket-desc" th:text="${ticket.description}"></td>
+            <td><span class="badge" th:classappend="'status-' + ${ticket.status}" th:text="${ticket.status}"></span></td>
+            <td><span class="badge" th:classappend="'priority-' + ${ticket.priority}" th:text="${ticket.priority}"></span></td>
+            <td th:text="${ticket.departmentName} ?: '—'"></td>
+            <td th:text="${ticket.assignedUsername} ?: 'Unassigned'"></td>
+            <td th:text="${#temporals.format(ticket.createdAt, 'dd MMM yyyy, HH:mm')}"></td>
+        </tr>
+        <tr th:if="${ticketPage.content.isEmpty()}">
+            <td colspan="7" class="empty-state">No tickets found.</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="pagination" th:if="${ticketPage.totalPages > 1}">
+        <a th:each="i : ${#numbers.sequence(0, ticketPage.totalPages - 1)}"
+           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${status}, priority=${priority})}"
+           th:text="${i + 1}"
+           th:classappend="${i == ticketPage.number} ? ' active'"
+           class="page-link"></a>
+    </div>
+</main>
+
+<dialog id="ticket-modal" class="modal-dialog">
+    <div class="modal-header">
+        <h2 id="modal-title">Ticket</h2>
+        <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('ticket-modal').close()">&times;</button>
+    </div>
+    <div id="modal-body" class="modal-body">
+        <p>Loading…</p>,;.l
+    </div>
+</dialog>
+
+<dialog id="create-ticket-modal" class="modal-dialog">
+    <div class="modal-header">
+        <h2>New Ticket</h2>
+        <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('create-ticket-modal').close()">&times;</button>
+    </div>
+    <form th:object="${ticketCreateRequest}" th:action="@{/tickets}" method="post" class="ticket-form">
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="ct-description">Summary</label>
+                <input type="text" id="ct-description" th:field="*{description}" placeholder="Short summary of the issue" required="required">
+                <span class="field-error" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ct-caller-name">Caller name</label>
+                    <input type="text" id="ct-caller-name" th:field="*{callerName}" required="required">
+                    <span class="field-error" th:if="${#fields.hasErrors('callerName')}" th:errors="*{callerName}"></span>
+                </div>
+                <div class="form-group">
+                    <label for="ct-phone">Phone number</label>
+                    <input type="text" id="ct-phone" th:field="*{phoneNumber}" required="required">
+                    <span class="field-error" th:if="${#fields.hasErrors('phoneNumber')}" th:errors="*{phoneNumber}"></span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ct-department">Department</label>
+                    <select id="ct-department" th:field="*{departmentId}">
+                        <option value="">Select department</option>
+                        <option th:each="d : ${departments}" th:value="${d.id}" th:text="${d.name}"></option>
+                    </select>
+                    <span class="field-error" th:if="${#fields.hasErrors('departmentId')}" th:errors="*{departmentId}"></span>
+                </div>
+                <div class="form-group">
+                    <label for="ct-problem-type">Problem type</label>
+                    <select id="ct-problem-type" th:field="*{problemTypeId}">
+                        <option value="">Select problem type</option>
+                        <option th:each="pt : ${problemTypes}" th:value="${pt.id}" th:text="${pt.name}"></option>
+                    </select>
+                    <span class="field-error" th:if="${#fields.hasErrors('problemTypeId')}" th:errors="*{problemTypeId}"></span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ct-ip">IP address</label>
+                    <input type="text" id="ct-ip" th:field="*{ipAddress}" placeholder="Optional">
+                    <span class="field-error" th:if="${#fields.hasErrors('ipAddress')}" th:errors="*{ipAddress}"></span>
+                </div>
+                <div class="form-group">
+                    <label for="ct-priority">Priority</label>
+                    <select id="ct-priority" th:field="*{priority}">
+                        <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}"></option>
+                    </select>
+                    <span class="field-error" th:if="${#fields.hasErrors('priority')}" th:errors="*{priority}"></span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="ct-comment">Details</label>
+                <textarea id="ct-comment" th:field="*{commentText}" placeholder="Describe the issue in detail…" required="required"></textarea>
+                <span class="field-error" th:if="${#fields.hasErrors('commentText')}" th:errors="*{commentText}"></span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="form-group modal-footer-assignee">
+                <label for="ct-assignee">Assigned to</label>
+                <select id="ct-assignee" th:field="*{assignedUserId}">
+                    <option th:each="u : ${users}" th:value="${u.id}" th:text="${u.username}"></option>
+                </select>
+                <span class="field-error" th:if="${#fields.hasErrors('assignedUserId')}" th:errors="*{assignedUserId}"></span>
+            </div>
+            <div class="modal-footer-actions">
+                <button type="submit" name="action" value="open" class="btn">Open Ticket</button>
+                <button type="submit" name="action" value="open-resolve" class="btn btn-primary">Open and Resolve</button>
+            </div>
+        </div>
+    </form>
+</dialog>
+
+<script th:src="@{/js/tickets.js}"></script>
+</body>
+</html>

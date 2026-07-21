@@ -2,15 +2,20 @@ package com.Chrianto.TicketingSystem.service;
 
 import com.Chrianto.TicketingSystem.dto.request.TicketCreateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketChangeStatusRequest;
+import com.Chrianto.TicketingSystem.dto.request.TicketUpdateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketReassignRequest;
 import com.Chrianto.TicketingSystem.dto.response.TicketResponse;
 import com.Chrianto.TicketingSystem.entity.*;
 import com.Chrianto.TicketingSystem.entity.enums.TicketAction;
+import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
 import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
 import com.Chrianto.TicketingSystem.exception.EntityNotFoundException;
 import com.Chrianto.TicketingSystem.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,10 +33,7 @@ public class TicketService {
 
     private final TicketHistoryService ticketHistoryService;
 
-    public TicketResponse createTicket(TicketCreateRequest req) {
-        User creator = userRepository.findById(req.getCreatorId())
-                .orElseThrow(() -> new EntityNotFoundException("Creator not found"));
-
+    public TicketResponse createTicket(TicketCreateRequest req, User creator) {
         User assignee = userRepository.findById(req.getAssignedUserId())
                 .orElseThrow(() -> new EntityNotFoundException("Assignee not found"));
 
@@ -47,6 +49,7 @@ public class TicketService {
         ticket.setLastModifiedBy(creator);
         ticket.setDepartment(department);
         ticket.setProblemType(problemType);
+        ticket.setCallerName(req.getCallerName());
         ticket.setPhoneNumber(req.getPhoneNumber());
         ticket.setIpAddress(req.getIpAddress());
         ticket.setDescription(req.getDescription());
@@ -66,16 +69,42 @@ public class TicketService {
         return toResponse(ticket);
     }
 
-    public TicketResponse resolveTicket(Long ticketId, TicketChangeStatusRequest req) {
+    public TicketResponse editTicket(Long ticketId, TicketUpdateRequest req, User performedBy){
+
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
 
-        User performedBy = userRepository.findById(req.getPerformedBy())
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + req.getPerformedBy()));
+        Department department = departmentRepository.findById(req.getDepartmentId())
+                .orElseThrow(() -> new EntityNotFoundException("Department not found"));
 
-        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
-            throw new IllegalStateException("Only the assigned user can resolve this ticket");
+        ProblemType problemType = problemTypeRepository.findById(req.getProblemTypeId())
+                .orElseThrow(() -> new EntityNotFoundException("ProblemType not found"));
+
+        if (!ticket.getCreator().getId().equals(performedBy.getId())) {
+            throw new IllegalStateException("Only the creator user can edit this ticket info");
         }
+
+        ticket.setLastModifiedBy(performedBy);
+        ticket.setDepartment(department);
+        ticket.setProblemType(problemType);
+        ticket.setCallerName(req.getCallerName());
+        ticket.setPhoneNumber(req.getPhoneNumber());
+        ticket.setIpAddress(req.getIpAddress());
+        ticket.setDescription(req.getDescription());
+        ticket.setUpdatedAt(LocalDateTime.now());
+
+        ticket = ticketRepository.save(ticket);
+
+        return toResponse(ticket);
+    }
+
+    public TicketResponse resolveTicket(Long ticketId, TicketChangeStatusRequest req, User performedBy) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+
+//        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
+//            throw new IllegalStateException("Only the assigned user can resolve this ticket");
+//        }
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
@@ -95,16 +124,13 @@ public class TicketService {
 
 
 
-    public TicketResponse cancelTicket(Long ticketId, TicketChangeStatusRequest req) {
+    public TicketResponse cancelTicket(Long ticketId, TicketChangeStatusRequest req, User performedBy) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
 
-        User performedBy = userRepository.findById(req.getPerformedBy())
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + req.getPerformedBy()));
-
-        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
-            throw new IllegalStateException("Only the assigned user can cancel this ticket");
-        }
+//        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
+//            throw new IllegalStateException("Only the assigned user can cancel this ticket");
+//        }
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
@@ -112,7 +138,7 @@ public class TicketService {
 
         Comment comment = postComment(ticket, performedBy, req.getCommentText());
 
-        ticket.setStatus(TicketStatus.RESOLVED);
+        ticket.setStatus(TicketStatus.CANCELLED);
         ticket.setLastModifiedBy(performedBy);
         ticket.setUpdatedAt(LocalDateTime.now());
         ticket = ticketRepository.save(ticket);
@@ -124,16 +150,13 @@ public class TicketService {
 
 
 
-    public TicketResponse commentOnTicket(Long ticketId, TicketChangeStatusRequest req) {
+    public TicketResponse commentOnTicket(Long ticketId, TicketChangeStatusRequest req, User performedBy) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
 
-        User performedBy = userRepository.findById(req.getPerformedBy())
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + req.getPerformedBy()));
-
-        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
-            throw new IllegalStateException("Only the assigned user can comment");
-        }
+//        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
+//            throw new IllegalStateException("Only the assigned user can comment");
+//        }
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
@@ -146,20 +169,17 @@ public class TicketService {
         return toResponse(ticket);
     }
 
-    public TicketResponse reassignTicket(Long ticketId, TicketReassignRequest req) {
+    public TicketResponse reassignTicket(Long ticketId, TicketReassignRequest req, User performedBy) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
-
-        User performedBy = userRepository.findById(req.getPerformedBy())
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + req.getPerformedBy()));
 
         User assignTo =  userRepository.findById(req.getAssignedTo())
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + req.getAssignedTo()));
 
 
-        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
-            throw new IllegalStateException("Only the assigned user can reassign this ticket");
-        }
+//        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
+//            throw new IllegalStateException("Only the assigned user can reassign this ticket");
+//        }
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
@@ -200,27 +220,37 @@ public class TicketService {
         return toResponse(ticket);
     }
 
-    public List<TicketResponse> getAllTickets(){
-        return ticketRepository.findAll()
-                .stream()
-                .map(this::toResponse)
-                .toList();
+    public Page<TicketResponse> getAllTickets(TicketStatus status, TicketPriority priority, Pageable pageable){
+        return ticketRepository.search(status, priority, pageable)
+                .map(this::toResponse);
+    }
+
+    @Transactional
+    public void deleteTicket(Long ticketId) {
+        if (!ticketRepository.existsById(ticketId)) {
+            throw new EntityNotFoundException("Ticket not found with id: " + ticketId);
+        }
+
+        ticketHistoryService.deleteByTicketId(ticketId);
+        commentRepository.deleteByTicketId(ticketId);
+        ticketRepository.deleteById(ticketId);
     }
 
 
     private TicketResponse toResponse(Ticket t) {
         return TicketResponse.builder()
                 .id(t.getId())
-                .creatorId(t.getCreator().getId())
-                .creatorUsername(t.getCreator().getUsername())
+                .creatorId(t.getCreator() != null ? t.getCreator().getId() : null)
+                .creatorUsername(t.getCreator() != null ? t.getCreator().getUsername() : null)
                 .assignedUserId(t.getAssignedUser() != null ? t.getAssignedUser().getId() : null)
                 .assignedUsername(t.getAssignedUser() != null ? t.getAssignedUser().getUsername() : null)
-                .departmentId(t.getDepartment().getId())
-                .departmentName(t.getDepartment().getName())
-                .problemTypeId(t.getProblemType().getId())
-                .problemType(t.getProblemType().getName())
+                .departmentId(t.getDepartment() != null ? t.getDepartment().getId() : null)
+                .departmentName(t.getDepartment() != null ? t.getDepartment().getName() : null)
+                .problemTypeId(t.getProblemType() != null ? t.getProblemType().getId() : null)
+                .problemType(t.getProblemType() != null ? t.getProblemType().getName() : null)
                 .status(t.getStatus())
                 .priority(t.getPriority())
+                .callerName(t.getCallerName())
                 .phoneNumber(t.getPhoneNumber())
                 .ipAddress(t.getIpAddress())
                 .description(t.getDescription())

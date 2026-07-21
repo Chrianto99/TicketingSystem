@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<nav class="navbar" th:fragment="nav">
+    <div class="navbar-brand"><a th:href="@{/tickets}">Ticketing System</a></div>
+    <div class="navbar-links">
+        <a th:href="@{/tickets}">Tickets</a>
+        <a th:href="@{/departments}">Departments</a>
+        <a th:href="@{/problemTypes}">Problem Types</a>
+        <a th:href="@{/users}" sec:authorize="hasRole('ADMIN')">Users</a>
+    </div>
+    <div class="navbar-user">
+        <span sec:authentication="name">username</span>
+        <form th:action="@{/logout}" method="post">
+            <button type="submit" class="btn-link">Logout</button>
+        </form>
+    </div>
+</nav>
+</body>
+</html>

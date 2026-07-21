@@ -6,13 +6,13 @@ import lombok.*;
 
 @Getter @Setter
 public class TicketCreateRequest {
-    @NonNull
-    private Long creatorId;
-
-    @NonNull
+    @NotNull
     private Long assignedUserId;
 
-    @NonNull
+    @NotBlank
+    private String callerName;
+
+    @NotBlank
     private String phoneNumber;
 
     @NotNull
@@ -27,12 +27,13 @@ public class TicketCreateRequest {
     )
     private String ipAddress;
 
-    @NonNull
+    @NotBlank
     private String description;
 
-    @NonNull
+    @NotNull
     private TicketPriority priority;
 
+    @NotBlank
     private String commentText;
 
 

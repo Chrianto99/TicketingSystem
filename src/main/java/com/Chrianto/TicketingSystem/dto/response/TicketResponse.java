@@ -19,6 +19,7 @@ public class TicketResponse {
     private String problemType;
     private TicketStatus status;
     private TicketPriority priority;
+    private String callerName;
     private String phoneNumber;
     private String ipAddress;
     private String description;
