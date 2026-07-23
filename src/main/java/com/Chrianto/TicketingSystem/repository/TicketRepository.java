@@ -36,6 +36,10 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     void nullifyDepartment(@Param("departmentId") Long departmentId);
 
     @Modifying
-    @Query("UPDATE Ticket t SET t.problemType = null WHERE t.problemType.id = :problemTypeId")
-    void nullifyProblemType(@Param("problemTypeId") Long problemTypeId);
+    @Query("UPDATE Ticket t SET t.category = null WHERE t.category.id = :categoryId")
+    void nullifyCategory(@Param("categoryId") Long categoryId);
+
+    @Modifying
+    @Query("UPDATE Ticket t SET t.subcategory = null WHERE t.subcategory.id = :subcategoryId")
+    void nullifySubcategory(@Param("subcategoryId") Long subcategoryId);
 }

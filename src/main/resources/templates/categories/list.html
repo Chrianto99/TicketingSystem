@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Categories</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<main class="page">
+    <div class="page-header">
+        <h1>Categories</h1>
+    </div>
+
+    <form th:object="${categoryRequest}" method="post" th:action="@{/categories}" class="filters" sec:authorize="hasRole('ADMIN')">
+        <input type="text" th:field="*{name}" placeholder="New category name" required="required">
+        <button type="submit" class="btn btn-primary">+ Add Category</button>
+    </form>
+
+    <div class="entity-list">
+        <div class="entity-card" th:each="category : ${categories}">
+            <div class="entity-card-header">
+                <span class="entity-name" th:text="${category.name}"></span>
+                <form method="post" th:action="@{/categories/{id}/delete(id=${category.id})}"
+                      sec:authorize="hasRole('ADMIN')"
+                      onsubmit="return confirm('Delete this category? Its subcategories will be deleted too.');">
+                    <button type="submit" class="btn-link-danger">Delete</button>
+                </form>
+            </div>
+
+            <details class="subcategory-dropdown">
+                <summary>
+                    Subcategories
+                    <span class="subcategory-count" th:text="'(' + ${#lists.size(subcategoriesByCategory.get(category.id) ?: {})} + ')'"></span>
+                </summary>
+
+                <ul class="subcategory-list">
+                    <li th:each="sub : ${subcategoriesByCategory.get(category.id) ?: {}}">
+                        <span th:text="${sub.name}"></span>
+                        <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/delete(catId=${category.id}, subId=${sub.id})}"
+                              sec:authorize="hasRole('ADMIN')"
+                              onsubmit="return confirm('Delete this subcategory?');">
+                            <button type="submit" class="btn-link-danger">Delete</button>
+                        </form>
+                    </li>
+                    <li th:if="${#lists.isEmpty(subcategoriesByCategory.get(category.id) ?: {})}" class="empty-subcategories">
+                        No subcategories yet.
+                    </li>
+                </ul>
+
+                <form method="post" th:action="@{/categories/{id}/subcategories(id=${category.id})}"
+                      class="add-subcategory-form" sec:authorize="hasRole('ADMIN')">
+                    <input type="text" name="name" placeholder="New subcategory name" required="required">
+                    <button type="submit" class="btn">+ Add</button>
+                </form>
+            </details>
+        </div>
+
+        <p th:if="${categories.isEmpty()}" class="empty-state">No categories yet.</p>
+    </div>
+</main>
+
+</body>
+</html>

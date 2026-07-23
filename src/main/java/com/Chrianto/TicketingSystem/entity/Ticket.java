@@ -27,8 +27,11 @@ public class Ticket {
     @ManyToOne @JoinColumn(name = "department_id")
     private Department department;
 
-    @ManyToOne @JoinColumn(name = "problem_category_id")
-    private ProblemType problemType;
+    @ManyToOne @JoinColumn(name = "category_id")
+    private Category category;
+
+    @ManyToOne @JoinColumn(name = "subcategory_id")
+    private Subcategory subcategory;
 
     private String callerName;
 

@@ -1,5 +1,6 @@
 package com.Chrianto.TicketingSystem.controller.view;
 
+import com.Chrianto.TicketingSystem.dto.request.CommentUpdateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketChangeStatusRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketCreateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketReassignRequest;
@@ -7,8 +8,8 @@ import com.Chrianto.TicketingSystem.dto.request.TicketUpdateRequest;
 import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
 import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
+import com.Chrianto.TicketingSystem.service.CategoryService;
 import com.Chrianto.TicketingSystem.service.DepartmentService;
-import com.Chrianto.TicketingSystem.service.ProblemTypeService;
 import com.Chrianto.TicketingSystem.service.TicketHistoryService;
 import com.Chrianto.TicketingSystem.service.TicketService;
 import com.Chrianto.TicketingSystem.service.UserService;
@@ -34,7 +35,7 @@ public class TicketViewController {
     private final TicketService ticketService;
     private final TicketHistoryService ticketHistoryService;
     private final DepartmentService departmentService;
-    private final ProblemTypeService problemTypeService;
+    private final CategoryService categoryService;
     private final UserService userService;
 
     @InitBinder
@@ -71,8 +72,8 @@ public class TicketViewController {
         }
         // "action" distinguishes "Open Ticket" vs "Open and Resolve" — both currently just create
         // the ticket; the differentiated behavior for "open-resolve" is still to be defined.
-        ticketService.createTicket(req, currentUser);
-        return "redirect:/tickets";
+        var created = ticketService.createTicket(req, currentUser);
+        return "redirect:/tickets?openTicket=" + created.getId();
     }
 
     @GetMapping("/{ticketId}")
@@ -95,11 +96,10 @@ public class TicketViewController {
                               @AuthenticationPrincipal User currentUser,
                               Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("ticket", ticketService.getTicketById(ticketId));
-            return "tickets/edit";
+            return "redirect:/tickets?openTicket=" + ticketId;
         }
         ticketService.editTicket(ticketId, req, currentUser);
-        return "redirect:/tickets/" + ticketId;
+        return "redirect:/tickets?openTicket=" + ticketId;
     }
 
     @PostMapping("/{ticketId}/resolve")
@@ -113,7 +113,7 @@ public class TicketViewController {
             return "tickets/detail";
         }
         ticketService.resolveTicket(ticketId, req, currentUser);
-        return "redirect:/tickets/" + ticketId;
+        return "redirect:/tickets";
     }
 
     @PostMapping("/{ticketId}/cancel")
@@ -127,7 +127,7 @@ public class TicketViewController {
             return "tickets/detail";
         }
         ticketService.cancelTicket(ticketId, req, currentUser);
-        return "redirect:/tickets/" + ticketId;
+        return "redirect:/tickets";
     }
 
     @PostMapping("/{ticketId}/comments")
@@ -141,7 +141,20 @@ public class TicketViewController {
             return "tickets/detail";
         }
         ticketService.commentOnTicket(ticketId, req, currentUser);
-        return "redirect:/tickets/" + ticketId;
+        return "redirect:/tickets";
+    }
+
+    @PostMapping("/{ticketId}/comments/{commentId}/edit")
+    public String editComment(@PathVariable Long ticketId,
+                               @PathVariable Long commentId,
+                               @Valid @ModelAttribute("commentUpdateRequest") CommentUpdateRequest req,
+                               BindingResult bindingResult,
+                               @AuthenticationPrincipal User currentUser) {
+        if (bindingResult.hasErrors()) {
+            return "redirect:/tickets?openTicket=" + ticketId;
+        }
+        ticketService.editComment(commentId, req, currentUser);
+        return "redirect:/tickets?openTicket=" + ticketId;
     }
 
     @PostMapping("/{ticketId}/reassign")
@@ -155,7 +168,7 @@ public class TicketViewController {
             return "tickets/detail";
         }
         ticketService.reassignTicket(ticketId, req, currentUser);
-        return "redirect:/tickets/" + ticketId;
+        return "redirect:/tickets";
     }
 
     @PostMapping("/{ticketId}/delete")
@@ -186,7 +199,7 @@ public class TicketViewController {
 
     private void populateCreateFormData(Model model, User currentUser) {
         model.addAttribute("departments", departmentService.getAllDepartments());
-        model.addAttribute("problemTypes", problemTypeService.getAllProblemTypes());
+        model.addAttribute("categories", categoryService.getAllCategories());
         model.addAttribute("users", userService.getAllUsers());
         if (!model.containsAttribute("ticketCreateRequest")) {
             TicketCreateRequest req = new TicketCreateRequest();

@@ -3,7 +3,7 @@ package com.Chrianto.TicketingSystem.dto.response;
 import lombok.*;
 
 @Setter @Getter @Builder
-public class ProblemTypeResponse {
+public class CategoryResponse {
     private Long id;
     private String name;
 }

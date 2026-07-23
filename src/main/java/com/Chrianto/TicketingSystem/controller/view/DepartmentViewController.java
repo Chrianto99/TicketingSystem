@@ -19,25 +19,17 @@ public class DepartmentViewController {
 
     @GetMapping
     public String listDepartments(Model model) {
-        model.addAttribute("departments", departmentService.getAllDepartments());
+        populateListModel(model);
         return "departments/list";
-    }
-
-    @GetMapping("/new")
-    @PreAuthorize("hasRole('ADMIN')")
-    public String newDepartmentForm(Model model) {
-        model.addAttribute("departmentCreateRequest", new DepartmentCreateRequest());
-        return "departments/form";
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public String createDepartment(@Valid @ModelAttribute("departmentCreateRequest") DepartmentCreateRequest req,
                                     BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) {
-            return "departments/form";
+        if (!bindingResult.hasErrors()) {
+            departmentService.createDepartment(req);
         }
-        departmentService.createDepartment(req);
         return "redirect:/departments";
     }
 
@@ -46,5 +38,12 @@ public class DepartmentViewController {
     public String deleteDepartment(@PathVariable Long departmentId) {
         departmentService.deleteDepartment(departmentId);
         return "redirect:/departments";
+    }
+
+    private void populateListModel(Model model) {
+        model.addAttribute("departments", departmentService.getAllDepartments());
+        if (!model.containsAttribute("departmentCreateRequest")) {
+            model.addAttribute("departmentCreateRequest", new DepartmentCreateRequest());
+        }
     }
 }

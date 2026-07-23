@@ -5,7 +5,7 @@
     <title>Tickets</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
-<body>
+<body th:attr="data-current-user-id=${#authentication.principal.id}">
 <div th:replace="~{fragments/nav :: nav}"></div>
 
 <main class="page">
@@ -65,12 +65,20 @@
 
 <dialog id="ticket-modal" class="modal-dialog">
     <div class="modal-header">
-        <h2 id="modal-title">Ticket</h2>
-        <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('ticket-modal').close()">&times;</button>
+        <div class="modal-header-top">
+            <div class="modal-title-row">
+                <h2 id="modal-title">Ticket</h2>
+                <span id="modal-status-badge" class="badge"></span>
+                <span id="modal-priority-badge" class="badge"></span>
+            </div>
+            <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('ticket-modal').close()">&times;</button>
+        </div>
+        <p id="modal-meta" class="modal-meta"></p>
     </div>
-    <div id="modal-body" class="modal-body">
-        <p>Loading…</p>,;.l
+    <div id="modal-body" class="modal-body ticket-form">
+        <p>Loading…</p>
     </div>
+    <div id="modal-footer" class="modal-footer" style="display:none;"></div>
 </dialog>
 
 <dialog id="create-ticket-modal" class="modal-dialog">
@@ -108,21 +116,39 @@
                     </select>
                     <span class="field-error" th:if="${#fields.hasErrors('departmentId')}" th:errors="*{departmentId}"></span>
                 </div>
+
                 <div class="form-group">
-                    <label for="ct-problem-type">Problem type</label>
-                    <select id="ct-problem-type" th:field="*{problemTypeId}">
-                        <option value="">Select problem type</option>
-                        <option th:each="pt : ${problemTypes}" th:value="${pt.id}" th:text="${pt.name}"></option>
-                    </select>
-                    <span class="field-error" th:if="${#fields.hasErrors('problemTypeId')}" th:errors="*{problemTypeId}"></span>
+                    <label for="ct-ip">IP address</label>
+                    <input type="text" id="ct-ip" th:field="*{ipAddress}" placeholder="Optional">
+                    <span class="field-error" th:if="${#fields.hasErrors('ipAddress')}" th:errors="*{ipAddress}"></span>
                 </div>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="ct-ip">IP address</label>
-                    <input type="text" id="ct-ip" th:field="*{ipAddress}" placeholder="Optional">
-                    <span class="field-error" th:if="${#fields.hasErrors('ipAddress')}" th:errors="*{ipAddress}"></span>
+                    <label for="ct-category">Category</label>
+                    <select id="ct-category" th:field="*{categoryId}">
+                        <option value="">Select category</option>
+                        <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}"></option>
+                    </select>
+                    <span class="field-error" th:if="${#fields.hasErrors('categoryId')}" th:errors="*{categoryId}"></span>
+                </div>
+                <div class="form-group">
+                    <label for="ct-subcategory">Subcategory</label>
+                    <select id="ct-subcategory" th:field="*{subcategoryId}" th:attr="data-initial-value=${ticketCreateRequest.subcategoryId}" disabled="disabled">
+                        <option value="">Select a category first</option>
+                    </select>
+                    <span class="field-error" th:if="${#fields.hasErrors('subcategoryId')}" th:errors="*{subcategoryId}"></span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ct-assignee">Assign to</label>
+                    <select id="ct-assignee" th:field="*{assignedUserId}">
+                        <option th:each="u : ${users}" th:value="${u.id}" th:text="${u.username}"></option>
+                    </select>
+                    <span class="field-error" th:if="${#fields.hasErrors('assignedUserId')}" th:errors="*{assignedUserId}"></span>
                 </div>
                 <div class="form-group">
                     <label for="ct-priority">Priority</label>
@@ -140,17 +166,7 @@
             </div>
         </div>
         <div class="modal-footer">
-            <div class="form-group modal-footer-assignee">
-                <label for="ct-assignee">Assigned to</label>
-                <select id="ct-assignee" th:field="*{assignedUserId}">
-                    <option th:each="u : ${users}" th:value="${u.id}" th:text="${u.username}"></option>
-                </select>
-                <span class="field-error" th:if="${#fields.hasErrors('assignedUserId')}" th:errors="*{assignedUserId}"></span>
-            </div>
-            <div class="modal-footer-actions">
-                <button type="submit" name="action" value="open" class="btn">Open Ticket</button>
-                <button type="submit" name="action" value="open-resolve" class="btn btn-primary">Open and Resolve</button>
-            </div>
+            <button type="submit" name="action" value="open" class="btn btn-primary">Open Ticket</button>
         </div>
     </form>
 </dialog>

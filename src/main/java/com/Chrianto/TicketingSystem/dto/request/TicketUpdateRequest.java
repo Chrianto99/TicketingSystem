@@ -10,7 +10,9 @@ public class TicketUpdateRequest {
 
     private Long departmentId;
 
-    private Long problemTypeId;
+    private Long categoryId;
+
+    private Long subcategoryId;
 
     private String phoneNumber;
 

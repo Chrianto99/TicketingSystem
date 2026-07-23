@@ -1,8 +1,8 @@
 package com.Chrianto.TicketingSystem.controller;
 
-import com.Chrianto.TicketingSystem.dto.request.ProblemTypeRequest;
-import com.Chrianto.TicketingSystem.dto.response.ProblemTypeResponse;
-import com.Chrianto.TicketingSystem.service.ProblemTypeService;
+import com.Chrianto.TicketingSystem.dto.request.CategoryRequest;
+import com.Chrianto.TicketingSystem.dto.response.CategoryResponse;
+import com.Chrianto.TicketingSystem.service.CategoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,28 +19,28 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/problemTypes")
+@RequestMapping("/api/categories")
 @RequiredArgsConstructor
-public class ProblemTypeController {
+public class CategoryController {
 
-    private final ProblemTypeService problemTypeService;
+    private final CategoryService categoryService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ProblemTypeResponse> createProblemType(@Valid @RequestBody ProblemTypeRequest req){
-        return ResponseEntity.status(HttpStatus.CREATED).body(problemTypeService.createProblemType(req));
+    public ResponseEntity<CategoryResponse> createCategory(@Valid @RequestBody CategoryRequest req){
+        return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.createCategory(req));
 
     }
 
     @GetMapping
-    public ResponseEntity<List<ProblemTypeResponse>> getAllProblemTypes(){
-        return ResponseEntity.ok(problemTypeService.getAllProblemTypes());
+    public ResponseEntity<List<CategoryResponse>> getAllCategories(){
+        return ResponseEntity.ok(categoryService.getAllCategories());
     }
 
-    @DeleteMapping("/{problemTypeId}")
+    @DeleteMapping("/{categoryId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteProblemType(@PathVariable Long problemTypeId) {
-        problemTypeService.deleteProblemType(problemTypeId);
+    public ResponseEntity<Void> deleteCategory(@PathVariable Long categoryId) {
+        categoryService.deleteCategory(categoryId);
         return ResponseEntity.noContent().build();
     }
 }

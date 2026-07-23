@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Departments</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<main class="page">
+    <div class="page-header">
+        <h1>Departments</h1>
+    </div>
+
+    <form th:object="${departmentCreateRequest}" method="post" th:action="@{/departments}" class="filters" sec:authorize="hasRole('ADMIN')">
+        <input type="text" th:field="*{name}" placeholder="New department name" required="required">
+        <button type="submit" class="btn btn-primary">+ Add Department</button>
+    </form>
+
+    <div class="entity-list">
+        <div class="entity-card" th:each="department : ${departments}">
+            <div class="entity-card-header">
+                <span class="entity-name" th:text="${department.name}"></span>
+                <form method="post" th:action="@{/departments/{id}/delete(id=${department.id})}"
+                      sec:authorize="hasRole('ADMIN')"
+                      onsubmit="return confirm('Delete this department?');">
+                    <button type="submit" class="btn-link-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+
+        <p th:if="${departments.isEmpty()}" class="empty-state">No departments yet.</p>
+    </div>
+</main>
+
+</body>
+</html>

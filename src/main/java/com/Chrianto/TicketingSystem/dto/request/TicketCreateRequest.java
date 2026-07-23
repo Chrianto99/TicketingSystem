@@ -19,7 +19,9 @@ public class TicketCreateRequest {
     private Long departmentId;
 
     @NotNull
-    private Long problemTypeId;
+    private Long categoryId;
+
+    private Long subcategoryId;
 
     @Pattern(
             regexp = "^((25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d?\\d)$",

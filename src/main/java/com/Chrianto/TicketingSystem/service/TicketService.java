@@ -1,5 +1,6 @@
 package com.Chrianto.TicketingSystem.service;
 
+import com.Chrianto.TicketingSystem.dto.request.CommentUpdateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketCreateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketChangeStatusRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketUpdateRequest;
@@ -29,7 +30,8 @@ public class TicketService {
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
     private final CommentRepository commentRepository;
-    private final ProblemTypeRepository problemTypeRepository;
+    private final CategoryRepository categoryRepository;
+    private final SubcategoryRepository subcategoryRepository;
 
     private final TicketHistoryService ticketHistoryService;
 
@@ -40,15 +42,22 @@ public class TicketService {
         Department department = departmentRepository.findById(req.getDepartmentId())
                 .orElseThrow(() -> new EntityNotFoundException("Department not found"));
 
-        ProblemType problemType = problemTypeRepository.findById(req.getProblemTypeId())
-                .orElseThrow(() -> new EntityNotFoundException("ProblemType not found"));
+        Category category = categoryRepository.findById(req.getCategoryId())
+                .orElseThrow(() -> new EntityNotFoundException("Category not found"));
+
+        Subcategory subcategory = req.getSubcategoryId() != null
+                ? subcategoryRepository.findById(req.getSubcategoryId())
+                        .orElseThrow(() -> new EntityNotFoundException("Subcategory not found"))
+                : null;
+        validateSubcategoryBelongsToCategory(category, subcategory);
 
         Ticket ticket = new Ticket();
         ticket.setCreator(creator);
         ticket.setAssignedUser(assignee);
         ticket.setLastModifiedBy(creator);
         ticket.setDepartment(department);
-        ticket.setProblemType(problemType);
+        ticket.setCategory(category);
+        ticket.setSubcategory(subcategory);
         ticket.setCallerName(req.getCallerName());
         ticket.setPhoneNumber(req.getPhoneNumber());
         ticket.setIpAddress(req.getIpAddress());
@@ -77,8 +86,14 @@ public class TicketService {
         Department department = departmentRepository.findById(req.getDepartmentId())
                 .orElseThrow(() -> new EntityNotFoundException("Department not found"));
 
-        ProblemType problemType = problemTypeRepository.findById(req.getProblemTypeId())
-                .orElseThrow(() -> new EntityNotFoundException("ProblemType not found"));
+        Category category = categoryRepository.findById(req.getCategoryId())
+                .orElseThrow(() -> new EntityNotFoundException("Category not found"));
+
+        Subcategory subcategory = req.getSubcategoryId() != null
+                ? subcategoryRepository.findById(req.getSubcategoryId())
+                        .orElseThrow(() -> new EntityNotFoundException("Subcategory not found"))
+                : null;
+        validateSubcategoryBelongsToCategory(category, subcategory);
 
         if (!ticket.getCreator().getId().equals(performedBy.getId())) {
             throw new IllegalStateException("Only the creator user can edit this ticket info");
@@ -86,7 +101,8 @@ public class TicketService {
 
         ticket.setLastModifiedBy(performedBy);
         ticket.setDepartment(department);
-        ticket.setProblemType(problemType);
+        ticket.setCategory(category);
+        ticket.setSubcategory(subcategory);
         ticket.setCallerName(req.getCallerName());
         ticket.setPhoneNumber(req.getPhoneNumber());
         ticket.setIpAddress(req.getIpAddress());
@@ -96,6 +112,18 @@ public class TicketService {
         ticket = ticketRepository.save(ticket);
 
         return toResponse(ticket);
+    }
+
+    public void editComment(Long commentId, CommentUpdateRequest req, User currentUser) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("Comment not found"));
+
+        if (comment.getUser() == null || !comment.getUser().getId().equals(currentUser.getId())) {
+            throw new IllegalStateException("Only the comment's author can edit it");
+        }
+
+        comment.setText(req.getText());
+        commentRepository.save(comment);
     }
 
     public TicketResponse resolveTicket(Long ticketId, TicketChangeStatusRequest req, User performedBy) {
@@ -199,6 +227,12 @@ public class TicketService {
     }
 
 
+    private void validateSubcategoryBelongsToCategory(Category category, Subcategory subcategory) {
+        if (subcategory != null && !subcategory.getCategory().getId().equals(category.getId())) {
+            throw new IllegalArgumentException("Subcategory does not belong to the selected category");
+        }
+    }
+
     public Comment postComment(Ticket ticket, User performedBy, String commentText){
         if (commentText == null || commentText.isEmpty()) {
             throw new IllegalArgumentException("User must type a comment");
@@ -246,8 +280,10 @@ public class TicketService {
                 .assignedUsername(t.getAssignedUser() != null ? t.getAssignedUser().getUsername() : null)
                 .departmentId(t.getDepartment() != null ? t.getDepartment().getId() : null)
                 .departmentName(t.getDepartment() != null ? t.getDepartment().getName() : null)
-                .problemTypeId(t.getProblemType() != null ? t.getProblemType().getId() : null)
-                .problemType(t.getProblemType() != null ? t.getProblemType().getName() : null)
+                .categoryId(t.getCategory() != null ? t.getCategory().getId() : null)
+                .category(t.getCategory() != null ? t.getCategory().getName() : null)
+                .subcategoryId(t.getSubcategory() != null ? t.getSubcategory().getId() : null)
+                .subcategory(t.getSubcategory() != null ? t.getSubcategory().getName() : null)
                 .status(t.getStatus())
                 .priority(t.getPriority())
                 .callerName(t.getCallerName())
