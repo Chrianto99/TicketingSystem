@@ -7,6 +7,7 @@
 </head>
 <body>
 <div th:replace="~{fragments/nav :: nav}"></div>
+<div th:replace="~{fragments/nav :: modals}"></div>
 
 <main class="page">
     <div class="page-header">
@@ -19,32 +20,74 @@
     </form>
 
     <div class="entity-list">
-        <div class="entity-card" th:each="category : ${categories}">
+        <div class="entity-card" th:each="category : ${activeCategories}">
             <div class="entity-card-header">
                 <span class="entity-name" th:text="${category.name}"></span>
-                <form method="post" th:action="@{/categories/{id}/delete(id=${category.id})}"
-                      sec:authorize="hasRole('ADMIN')"
-                      onsubmit="return confirm('Delete this category? Its subcategories will be deleted too.');">
-                    <button type="submit" class="btn-link-danger">Delete</button>
-                </form>
+                <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                    <summary title="Options">&#8942;</summary>
+                    <div class="entity-menu-panel">
+                        <form method="post" th:action="@{/categories/{id}/edit(id=${category.id})}" class="entity-menu-edit">
+                            <input type="text" name="name" th:value="${category.name}" required="required" aria-label="Category name">
+                            <button type="submit" class="btn btn-sm">Save</button>
+                        </form>
+                        <div class="entity-menu-divider"></div>
+                        <form method="post" th:action="@{/categories/{id}/toggle-active(id=${category.id})}"
+                              data-confirm="Deactivate this category? Its subcategories will be deactivated too.">
+                            <button type="submit" class="entity-menu-action">Deactivate</button>
+                        </form>
+                    </div>
+                </details>
             </div>
 
             <details class="subcategory-dropdown">
                 <summary>
                     Subcategories
-                    <span class="subcategory-count" th:text="'(' + ${#lists.size(subcategoriesByCategory.get(category.id) ?: {})} + ')'"></span>
+                    <span class="subcategory-count"
+                          th:text="'(' + ${#lists.size(activeSubcategoriesByCategory.get(category.id) ?: {}) + #lists.size(inactiveSubcategoriesByCategory.get(category.id) ?: {})} + ')'"></span>
                 </summary>
 
                 <ul class="subcategory-list">
-                    <li th:each="sub : ${subcategoriesByCategory.get(category.id) ?: {}}">
+                    <li th:each="sub : ${activeSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item">
                         <span th:text="${sub.name}"></span>
-                        <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/delete(catId=${category.id}, subId=${sub.id})}"
-                              sec:authorize="hasRole('ADMIN')"
-                              onsubmit="return confirm('Delete this subcategory?');">
-                            <button type="submit" class="btn-link-danger">Delete</button>
-                        </form>
+                        <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                            <summary title="Options">&#8942;</summary>
+                            <div class="entity-menu-panel">
+                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}" class="entity-menu-edit">
+                                    <input type="text" name="name" th:value="${sub.name}" required="required" aria-label="Subcategory name">
+                                    <button type="submit" class="btn btn-sm">Save</button>
+                                </form>
+                                <div class="entity-menu-divider"></div>
+                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/toggle-active(catId=${category.id}, subId=${sub.id})}">
+                                    <button type="submit" class="entity-menu-action">Deactivate</button>
+                                </form>
+                            </div>
+                        </details>
                     </li>
-                    <li th:if="${#lists.isEmpty(subcategoriesByCategory.get(category.id) ?: {})}" class="empty-subcategories">
+                    <li th:each="sub : ${inactiveSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item subcategory-item-inactive">
+                        <div class="entity-name-group">
+                            <span th:text="${sub.name}"></span>
+                            <span class="badge entity-status-badge status-inactive">Inactive</span>
+                        </div>
+                        <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                            <summary title="Options">&#8942;</summary>
+                            <div class="entity-menu-panel">
+                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}" class="entity-menu-edit">
+                                    <input type="text" name="name" th:value="${sub.name}" required="required" aria-label="Subcategory name">
+                                    <button type="submit" class="btn btn-sm">Save</button>
+                                </form>
+                                <div class="entity-menu-divider"></div>
+                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/toggle-active(catId=${category.id}, subId=${sub.id})}">
+                                    <button type="submit" class="entity-menu-action">Activate</button>
+                                </form>
+                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/delete(catId=${category.id}, subId=${sub.id})}"
+                                      data-confirm="Delete this subcategory? This cannot be undone.">
+                                    <button type="submit" class="entity-menu-action entity-menu-action-danger">Delete</button>
+                                </form>
+                            </div>
+                        </details>
+                    </li>
+                    <li th:if="${#lists.isEmpty(activeSubcategoriesByCategory.get(category.id) ?: {}) and #lists.isEmpty(inactiveSubcategoriesByCategory.get(category.id) ?: {})}"
+                        class="empty-subcategories">
                         No subcategories yet.
                     </li>
                 </ul>
@@ -57,7 +100,85 @@
             </details>
         </div>
 
-        <p th:if="${categories.isEmpty()}" class="empty-state">No categories yet.</p>
+        <h2 class="entity-list-divider" th:if="${!inactiveCategories.isEmpty()}">Inactive</h2>
+
+        <div class="entity-card entity-card-inactive" th:each="category : ${inactiveCategories}">
+            <div class="entity-card-header">
+                <div class="entity-name-group">
+                    <span class="entity-name" th:text="${category.name}"></span>
+                    <span class="badge entity-status-badge status-inactive">Inactive</span>
+                </div>
+                <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                    <summary title="Options">&#8942;</summary>
+                    <div class="entity-menu-panel">
+                        <form method="post" th:action="@{/categories/{id}/edit(id=${category.id})}" class="entity-menu-edit">
+                            <input type="text" name="name" th:value="${category.name}" required="required" aria-label="Category name">
+                            <button type="submit" class="btn btn-sm">Save</button>
+                        </form>
+                        <div class="entity-menu-divider"></div>
+                        <form method="post" th:action="@{/categories/{id}/toggle-active(id=${category.id})}">
+                            <button type="submit" class="entity-menu-action">Activate</button>
+                        </form>
+                        <form method="post" th:action="@{/categories/{id}/delete(id=${category.id})}"
+                              data-confirm="Delete this category? Its subcategories will be deleted too. This cannot be undone.">
+                            <button type="submit" class="entity-menu-action entity-menu-action-danger">Delete</button>
+                        </form>
+                    </div>
+                </details>
+            </div>
+
+            <details class="subcategory-dropdown">
+                <summary>
+                    Subcategories
+                    <span class="subcategory-count"
+                          th:text="'(' + ${#lists.size(activeSubcategoriesByCategory.get(category.id) ?: {}) + #lists.size(inactiveSubcategoriesByCategory.get(category.id) ?: {})} + ')'"></span>
+                </summary>
+
+                <ul class="subcategory-list">
+                    <li th:each="sub : ${activeSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item">
+                        <span th:text="${sub.name}"></span>
+                        <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                            <summary title="Options">&#8942;</summary>
+                            <div class="entity-menu-panel">
+                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}" class="entity-menu-edit">
+                                    <input type="text" name="name" th:value="${sub.name}" required="required" aria-label="Subcategory name">
+                                    <button type="submit" class="btn btn-sm">Save</button>
+                                </form>
+                                <div class="entity-menu-divider"></div>
+                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/toggle-active(catId=${category.id}, subId=${sub.id})}">
+                                    <button type="submit" class="entity-menu-action">Deactivate</button>
+                                </form>
+                            </div>
+                        </details>
+                    </li>
+                    <li th:each="sub : ${inactiveSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item subcategory-item-inactive">
+                        <div class="entity-name-group">
+                            <span th:text="${sub.name}"></span>
+                            <span class="badge entity-status-badge status-inactive">Inactive</span>
+                        </div>
+                        <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                            <summary title="Options">&#8942;</summary>
+                            <div class="entity-menu-panel">
+                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}">
+                                    <input type="text" name="name" th:value="${sub.name}" required="required">
+                                    <button type="submit" class="btn btn-sm">Save</button>
+                                </form>
+                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/delete(catId=${category.id}, subId=${sub.id})}"
+                                      data-confirm="Delete this subcategory?">
+                                    <button type="submit" class="btn-link-danger">Delete</button>
+                                </form>
+                            </div>
+                        </details>
+                    </li>
+                    <li th:if="${#lists.isEmpty(activeSubcategoriesByCategory.get(category.id) ?: {}) and #lists.isEmpty(inactiveSubcategoriesByCategory.get(category.id) ?: {})}"
+                        class="empty-subcategories">
+                        No subcategories yet.
+                    </li>
+                </ul>
+            </details>
+        </div>
+
+        <p th:if="${activeCategories.isEmpty() and inactiveCategories.isEmpty()}" class="empty-state">No categories yet.</p>
     </div>
 </main>
 

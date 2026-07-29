@@ -14,9 +14,17 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     @Query("SELECT t FROM Ticket t " +
            "WHERE (:status IS NULL OR t.status = :status) " +
-           "AND (:priority IS NULL OR t.priority = :priority)")
+           "AND (:priority IS NULL OR t.priority = :priority) " +
+           "AND (:departmentId IS NULL OR t.department.id = :departmentId) " +
+           "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
+           "AND (:createdByUserId IS NULL OR t.creator.id = :createdByUserId) " +
+           "AND (:assignedToUserId IS NULL OR t.assignedUser.id = :assignedToUserId)")
     Page<Ticket> search(@Param("status") TicketStatus status,
                          @Param("priority") TicketPriority priority,
+                         @Param("departmentId") Long departmentId,
+                         @Param("categoryId") Long categoryId,
+                         @Param("createdByUserId") Long createdByUserId,
+                         @Param("assignedToUserId") Long assignedToUserId,
                          Pageable pageable);
 
     @Modifying

@@ -28,6 +28,7 @@ public class SubcategoryService {
         Subcategory subcategory = new Subcategory();
         subcategory.setName(req.getName());
         subcategory.setCategory(category);
+        subcategory.setActive(true);
 
         subcategory = subcategoryRepository.save(subcategory);
 
@@ -35,9 +36,37 @@ public class SubcategoryService {
     }
 
     @Transactional
+    public SubcategoryResponse updateSubcategoryName(Long subcategoryId, String name) {
+        Subcategory subcategory = subcategoryRepository.findById(subcategoryId)
+                .orElseThrow(() -> new EntityNotFoundException("Subcategory not found with id: " + subcategoryId));
+
+        subcategory.setName(name);
+        subcategory = subcategoryRepository.save(subcategory);
+
+        return toResponse(subcategory);
+    }
+
+    @Transactional
+    public void toggleSubcategoryActiveState(Long subcategoryId) {
+
+        Subcategory subcategory = subcategoryRepository.findById(subcategoryId)
+                .orElseThrow(() -> new EntityNotFoundException("Subcategory not found with id: " + subcategoryId));
+
+        boolean newState = !subcategory.isActive();
+        if (newState && !subcategory.getCategory().isActive()) {
+            throw new IllegalStateException("Cannot activate a subcategory while its category is inactive");
+        }
+        subcategory.setActive(newState);
+        subcategoryRepository.save(subcategory);
+    }
+
+    @Transactional
     public void deleteSubcategory(Long subcategoryId) {
-        if (!subcategoryRepository.existsById(subcategoryId)) {
-            throw new EntityNotFoundException("Subcategory not found with id: " + subcategoryId);
+        Subcategory subcategory = subcategoryRepository.findById(subcategoryId)
+                .orElseThrow(() -> new EntityNotFoundException("Subcategory not found with id: " + subcategoryId));
+
+        if (subcategory.isActive()) {
+            throw new IllegalStateException("Only deactivated subcategories can be deleted");
         }
 
         ticketRepository.nullifySubcategory(subcategoryId);
@@ -60,6 +89,7 @@ public class SubcategoryService {
                 .name(subcategory.getName())
                 .categoryId(subcategory.getCategory().getId())
                 .categoryName(subcategory.getCategory().getName())
+                .active(subcategory.isActive())
                 .build();
     }
 

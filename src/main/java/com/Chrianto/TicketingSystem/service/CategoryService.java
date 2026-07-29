@@ -25,6 +25,7 @@ public class CategoryService {
         Category category = new Category();
 
         category.setName(req.getName());
+        category.setActive(true);
 
         category = categoryRepository.save(category);
 
@@ -32,9 +33,44 @@ public class CategoryService {
     }
 
     @Transactional
+    public CategoryResponse updateCategoryName(Long categoryId, String name) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new EntityNotFoundException("Category not found with id: " + categoryId));
+
+        category.setName(name);
+        category = categoryRepository.save(category);
+
+        return toResponse(category);
+    }
+
+    @Transactional
+    public void toggleCategoryActiveState(Long categoryId) {
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new EntityNotFoundException("Category not found with id: " + categoryId));
+
+        boolean newState = !category.isActive();
+        category.setActive(newState);
+        categoryRepository.save(category);
+
+        if (!newState) {
+            // only cascade on deactivation — reactivating the category
+            // does NOT automatically reactivate its subcategories
+            List<Subcategory> subcategories = subcategoryRepository.findByCategoryId(categoryId);
+            for (Subcategory s : subcategories) {
+                s.setActive(false);
+            }
+            subcategoryRepository.saveAll(subcategories);
+        }
+    }
+
+    @Transactional
     public void deleteCategory(Long categoryId) {
-        if (!categoryRepository.existsById(categoryId)) {
-            throw new EntityNotFoundException("Category not found with id: " + categoryId);
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new EntityNotFoundException("Category not found with id: " + categoryId));
+
+        if (category.isActive()) {
+            throw new IllegalStateException("Only deactivated categories can be deleted");
         }
 
         // subcategories always belong to exactly one category, so they can't be
@@ -60,6 +96,7 @@ public class CategoryService {
         return CategoryResponse.builder()
                 .id(category.getId())
                 .name(category.getName())
+                .active(category.isActive())
                 .build();
     }
 

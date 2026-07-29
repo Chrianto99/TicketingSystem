@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>New User</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<main class="page page-narrow">
+    <div class="page-header">
+        <h1>New User</h1>
+    </div>
+
+    <form th:object="${userRegisterRequest}" th:action="@{/users}" method="post" class="ticket-form">
+        <div class="form-group">
+            <label for="u-username">Username</label>
+            <input type="text" id="u-username" th:field="*{username}" required="required">
+            <span class="field-error" th:if="${#fields.hasErrors('username')}" th:errors="*{username}"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="u-email">Email</label>
+            <input type="email" id="u-email" th:field="*{email}" required="required">
+            <span class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="u-phone">Phone number</label>
+            <input type="text" id="u-phone" th:field="*{phoneNumber}" required="required">
+            <span class="field-error" th:if="${#fields.hasErrors('phoneNumber')}" th:errors="*{phoneNumber}"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="u-role">Role</label>
+            <select id="u-role" th:field="*{role}">
+                <option th:each="r : ${roles}" th:value="${r}" th:text="${r}"></option>
+            </select>
+            <span class="field-error" th:if="${#fields.hasErrors('role')}" th:errors="*{role}"></span>
+        </div>
+
+        <p class="field-label">The new user's password will be set to <strong>qwerty123</strong>.</p>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Create User</button>
+            <a th:href="@{/users}" class="btn">Cancel</a>
+        </div>
+    </form>
+</main>
+
+</body>
+</html>

@@ -7,14 +7,19 @@
 </head>
 <body th:attr="data-current-user-id=${#authentication.principal.id}">
 <div th:replace="~{fragments/nav :: nav}"></div>
+<div th:replace="~{fragments/nav :: modals}"></div>
 
 <main class="page">
     <div class="page-header">
-        <h1>Tickets</h1>
+        <div class="page-tabs">
+            <a th:href="@{/tickets}" th:classappend="${scope != 'assigned'} ? ' active'" class="page-tab">Tickets</a>
+            <a th:href="@{/tickets(scope='assigned')}" th:classappend="${scope == 'assigned'} ? ' active'" class="page-tab">My Tickets</a>
+        </div>
         <button type="button" class="btn btn-primary" onclick="document.getElementById('create-ticket-modal').showModal()">+ New Ticket</button>
     </div>
 
     <form class="filters" method="get" th:action="@{/tickets}">
+
         <select name="status" onchange="this.form.submit()">
             <option value="">All statuses</option>
             <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${s == status}"></option>
@@ -23,7 +28,22 @@
             <option value="">All priorities</option>
             <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}" th:selected="${p == priority}"></option>
         </select>
-        <a th:if="${status != null or priority != null}" th:href="@{/tickets}" class="btn">Clear filters</a>
+        <select name="scope" onchange="this.form.submit()">
+            <option value="">All Users</option>
+            <option value="assigned" th:selected="${scope == 'assigned'}">Assigned to me</option>
+            <option value="created" th:selected="${scope == 'created'}">Created by me</option>
+        </select>
+<!--        <select name="departmentId" onchange="this.form.submit()">-->
+<!--            <option value="">All departments</option>-->
+<!--            <option th:each="d : ${departments}" th:value="${d.id}" th:text="${d.name}" th:selected="${d.id == departmentId}"></option>-->
+<!--        </select>-->
+<!--        <select name="categoryId" onchange="this.form.submit()">-->
+<!--            <option value="">All categories</option>-->
+<!--            <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}" th:selected="${c.id == categoryId}"></option>-->
+<!--        </select>-->
+
+        <a th:if="${status != null or priority != null or departmentId != null or categoryId != null or scope != null}"
+           th:href="@{/tickets}" class="btn">Clear filters</a>
     </form>
 
     <table class="ticket-table">
@@ -56,7 +76,7 @@
 
     <div class="pagination" th:if="${ticketPage.totalPages > 1}">
         <a th:each="i : ${#numbers.sequence(0, ticketPage.totalPages - 1)}"
-           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${status}, priority=${priority})}"
+           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${status}, priority=${priority}, departmentId=${departmentId}, categoryId=${categoryId}, scope=${scope})}"
            th:text="${i + 1}"
            th:classappend="${i == ticketPage.number} ? ' active'"
            class="page-link"></a>
@@ -81,10 +101,12 @@
     <div id="modal-footer" class="modal-footer" style="display:none;"></div>
 </dialog>
 
-<dialog id="create-ticket-modal" class="modal-dialog">
+<dialog id="create-ticket-modal" class="modal-dialog" th:attr="data-has-errors=${#fields.hasErrors('ticketCreateRequest.*')}">
     <div class="modal-header">
-        <h2>New Ticket</h2>
-        <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('create-ticket-modal').close()">&times;</button>
+        <div class="modal-header-top">
+            <h2>New Ticket</h2>
+            <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('create-ticket-modal').close()">&times;</button>
+        </div>
     </div>
     <form th:object="${ticketCreateRequest}" th:action="@{/tickets}" method="post" class="ticket-form">
         <div class="modal-body">

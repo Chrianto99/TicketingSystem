@@ -7,6 +7,7 @@
 </head>
 <body>
 <div th:replace="~{fragments/nav :: nav}"></div>
+<div th:replace="~{fragments/nav :: modals}"></div>
 
 <main class="page">
     <div class="page-header">
@@ -19,18 +20,54 @@
     </form>
 
     <div class="entity-list">
-        <div class="entity-card" th:each="department : ${departments}">
+        <div class="entity-card" th:each="department : ${activeDepartments}">
             <div class="entity-card-header">
                 <span class="entity-name" th:text="${department.name}"></span>
-                <form method="post" th:action="@{/departments/{id}/delete(id=${department.id})}"
-                      sec:authorize="hasRole('ADMIN')"
-                      onsubmit="return confirm('Delete this department?');">
-                    <button type="submit" class="btn-link-danger">Delete</button>
-                </form>
+                <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                    <summary title="Options">&#8942;</summary>
+                    <div class="entity-menu-panel">
+                        <form method="post" th:action="@{/departments/{id}/edit(id=${department.id})}" class="entity-menu-edit">
+                            <input type="text" name="name" th:value="${department.name}" required="required" aria-label="Department name">
+                            <button type="submit" class="btn btn-sm">Save</button>
+                        </form>
+                        <div class="entity-menu-divider"></div>
+                        <form method="post" th:action="@{/departments/{id}/toggle-active(id=${department.id})}">
+                            <button type="submit" class="entity-menu-action">Deactivate</button>
+                        </form>
+                    </div>
+                </details>
             </div>
         </div>
 
-        <p th:if="${departments.isEmpty()}" class="empty-state">No departments yet.</p>
+        <h2 class="entity-list-divider" th:if="${!inactiveDepartments.isEmpty()}">Inactive</h2>
+
+        <div class="entity-card entity-card-inactive" th:each="department : ${inactiveDepartments}">
+            <div class="entity-card-header">
+                <div class="entity-name-group">
+                    <span class="entity-name" th:text="${department.name}"></span>
+                    <span class="badge entity-status-badge status-inactive">Inactive</span>
+                </div>
+                <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                    <summary title="Options">&#8942;</summary>
+                    <div class="entity-menu-panel">
+                        <form method="post" th:action="@{/departments/{id}/edit(id=${department.id})}" class="entity-menu-edit">
+                            <input type="text" name="name" th:value="${department.name}" required="required" aria-label="Department name">
+                            <button type="submit" class="btn btn-sm">Save</button>
+                        </form>
+                        <div class="entity-menu-divider"></div>
+                        <form method="post" th:action="@{/departments/{id}/toggle-active(id=${department.id})}">
+                            <button type="submit" class="entity-menu-action">Activate</button>
+                        </form>
+                        <form method="post" th:action="@{/departments/{id}/delete(id=${department.id})}"
+                              data-confirm="Delete this department? This cannot be undone.">
+                            <button type="submit" class="entity-menu-action entity-menu-action-danger">Delete</button>
+                        </form>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <p th:if="${activeDepartments.isEmpty() and inactiveDepartments.isEmpty()}" class="empty-state">No departments yet.</p>
     </div>
 </main>
 

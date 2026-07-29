@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>My Profile</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+<div th:replace="~{fragments/nav :: modals}"></div>
+
+<main class="page page-narrow">
+    <div class="page-header">
+        <h1>My Profile</h1>
+    </div>
+
+    <p th:if="${param.updated != null}" class="success-banner">Profile updated.</p>
+    <p th:if="${param.passwordChanged != null}" class="success-banner">Password changed.</p>
+
+    <h3>Account information</h3>
+    <form th:object="${userProfileUpdateRequest}" th:action="@{/profile}" method="post" class="ticket-form">
+        <div class="form-group">
+            <label for="p-username">Username</label>
+            <input type="text" id="p-username" th:value="${user.username}" disabled="disabled">
+        </div>
+
+        <div class="form-group">
+            <label for="p-email">Email</label>
+            <input type="email" id="p-email" th:field="*{email}" required="required">
+            <span class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="p-role">Role</label>
+            <input type="text" id="p-role" th:value="${user.role}" disabled="disabled">
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save changes</button>
+        </div>
+    </form>
+
+    <h3>Change password</h3>
+    <form th:object="${changePasswordRequest}" th:action="@{/profile/password}" method="post" class="ticket-form">
+        <div class="form-group">
+            <label for="p-current-password">Current password</label>
+            <input type="password" id="p-current-password" th:field="*{currentPassword}" required="required">
+            <span class="field-error" th:if="${#fields.hasErrors('currentPassword')}" th:errors="*{currentPassword}"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="p-new-password">New password</label>
+            <input type="password" id="p-new-password" th:field="*{newPassword}" required="required" minlength="8">
+            <span class="field-error" th:if="${#fields.hasErrors('newPassword')}" th:errors="*{newPassword}"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="p-confirm-password">Confirm new password</label>
+            <input type="password" id="p-confirm-password" th:field="*{confirmPassword}" required="required" minlength="8">
+            <span class="field-error" th:if="${#fields.hasErrors('confirmPassword')}" th:errors="*{confirmPassword}"></span>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Change password</button>
+        </div>
+    </form>
+</main>
+
+</body>
+</html>

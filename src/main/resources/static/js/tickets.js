@@ -41,7 +41,8 @@ document.addEventListener('DOMContentLoaded', function () {
         ]).then(function (results) {
             renderTicket(results[0], results[1]);
         }).catch(function (err) {
-            modalBody.innerHTML = '<p class="modal-error">Failed to load ticket: ' + escapeHtml(err.message) + '</p>';
+            modal.close();
+            window.showError('Failed to load ticket: ' + err.message);
         });
     }
 
@@ -67,6 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var html = '';
 
         html += '<div class="section-heading-row"><h3>INFO</h3>';
+        html += '<button type="button" class="icon-btn" id="td-info-toggle" title="Hide" aria-expanded="true">▾</button>';
         if (canEdit) {
             html += '<button type="button" class="icon-btn" id="td-edit-toggle" title="Edit">✎</button>';
         }
@@ -87,19 +89,24 @@ document.addEventListener('DOMContentLoaded', function () {
         modalBody.innerHTML = html;
         wireReassign();
         wireCommentEdits();
+        wireInfoCollapse();
 
         if (canEdit) {
             document.getElementById('td-edit-toggle').addEventListener('click', function () {
-                document.getElementById('info-fields').innerHTML = infoEditFormHtml(ticket);
+                var fields = document.getElementById('info-fields');
+                var infoToggle = document.getElementById('td-info-toggle');
+                fields.style.display = '';
+                infoToggle.textContent = '▾';
+                infoToggle.title = 'Hide';
+                infoToggle.setAttribute('aria-expanded', 'true');
+                fields.innerHTML = infoEditFormHtml(ticket);
                 wireInfoEdit(ticket);
             });
         }
 
-        if (ticket.status === 'OPEN') {
-            modalFooter.innerHTML = actionAreaHtml(ticket);
-            modalFooter.style.display = '';
-            wireActionConfirms();
-        }
+        modalFooter.innerHTML = actionAreaHtml(ticket);
+        modalFooter.style.display = '';
+        wireActionConfirms(ticket);
     }
 
     function infoFieldsHtml(ticket) {
@@ -194,10 +201,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var cancelBtn = document.getElementById('td-edit-cancel-btn');
 
         cloneOptionsExcludingBlank('#ct-department', deptSelect);
-        deptSelect.value = ticket.departmentId;
+        ensureCurrentOptionSelected(deptSelect, ticket.departmentId, ticket.departmentName);
 
         cloneOptionsExcludingBlank('#ct-category', catSelect);
-        catSelect.value = ticket.categoryId;
+        ensureCurrentOptionSelected(catSelect, ticket.categoryId, ticket.category);
 
         loadEditSubcategories(ticket.categoryId, ticket.subcategoryId);
 
@@ -223,6 +230,20 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function ensureCurrentOptionSelected(selectEl, id, label) {
+        if (!id) {
+            return;
+        }
+        selectEl.value = id;
+        if (String(selectEl.value) !== String(id)) {
+            var opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = (label || 'Unknown') + ' (Inactive)';
+            selectEl.appendChild(opt);
+            selectEl.value = id;
+        }
+    }
+
     function loadEditSubcategories(categoryId, selectedId) {
         var subcatSelect = document.getElementById('td-edit-subcategory');
         if (!categoryId) {
@@ -243,7 +264,10 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function (subcategories) {
                 var html = '<option value="">Optional</option>';
                 subcategories.forEach(function (sc) {
-                    html += '<option value="' + sc.id + '">' + escapeHtml(sc.name) + '</option>';
+                    if (!sc.active && String(sc.id) !== String(selectedId)) {
+                        return;
+                    }
+                    html += '<option value="' + sc.id + '">' + escapeHtml(sc.name) + (sc.active ? '' : ' (Inactive)') + '</option>';
                 });
                 subcatSelect.innerHTML = html;
                 if (selectedId) {
@@ -285,9 +309,23 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function wireInfoCollapse() {
+        var toggle = document.getElementById('td-info-toggle');
+        var fields = document.getElementById('info-fields');
+
+        toggle.addEventListener('click', function () {
+            var collapsed = fields.style.display === 'none';
+            fields.style.display = collapsed ? '' : 'none';
+            toggle.textContent = collapsed ? '▾' : '▸';
+            toggle.title = collapsed ? 'Hide' : 'Show';
+            toggle.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
+        });
+    }
+
     function actionAreaHtml(ticket) {
         var csrfInput = document.querySelector('#create-ticket-modal input[name="_csrf"]');
         var csrfToken = csrfInput ? csrfInput.value : '';
+        var isOpen = ticket.status === 'OPEN';
 
         var html = '<div class="ticket-action-area">';
         html += '<form id="ticket-action-form" class="ticket-action-form" method="post" action="/tickets/' + ticket.id + '/comments">';
@@ -296,53 +334,90 @@ document.addEventListener('DOMContentLoaded', function () {
         html += '<label for="ticket-action-comment">Update</label>';
         html += '<textarea id="ticket-action-comment" name="commentText" placeholder="Add a comment…" required="required"></textarea>';
         html += '</div>';
-        html += '<div class="ticket-action-buttons">';
-        html += '<button type="submit" class="btn" id="ticket-comment-btn">💬 Comment</button>';
-        html += '<button type="submit" formaction="/tickets/' + ticket.id + '/resolve" class="btn btn-primary" id="ticket-resolve-btn">✓ Resolve</button>';
-        html += '<button type="submit" formaction="/tickets/' + ticket.id + '/cancel" class="btn btn-danger" id="ticket-cancel-btn">✕ Cancel</button>';
-        html += '</div>';
+
+        if (isOpen) {
+            html += '<div class="ticket-action-buttons ticket-action-buttons-spread">';
+            html += '<button type="submit" formaction="/tickets/' + ticket.id + '/cancel" class="btn btn-danger" id="ticket-cancel-btn">✗ Cancel</button>';
+            html += '<button type="submit" formaction="/tickets/' + ticket.id + '/resolve" class="btn btn-success" id="ticket-resolve-btn">✓ Resolve</button>';
+            html += '<button type="submit" class="btn" id="ticket-comment-btn">💬 Comment</button>';
+            html += '</div>';
+        } else {
+            html += '<div class="ticket-action-buttons ticket-action-buttons-center">';
+            html += '<button type="submit" formaction="/tickets/' + ticket.id + '/reopen" class="btn btn-primary" id="ticket-reopen-btn">↺ Reopen</button>';
+            html += '</div>';
+        }
+
         html += '</form>';
         html += '</div>';
         return html;
     }
 
-    function wireActionConfirms() {
+    function wireActionConfirms(ticket) {
+        var isOpen = ticket.status === 'OPEN';
         var form = document.getElementById('ticket-action-form');
         var textarea = document.getElementById('ticket-action-comment');
-        var commentBtn = document.getElementById('ticket-comment-btn');
-        var resolveBtn = document.getElementById('ticket-resolve-btn');
-        var cancelBtn = document.getElementById('ticket-cancel-btn');
-        var buttons = [commentBtn, resolveBtn, cancelBtn];
 
-        var placeholders = {
-            comment: 'Add a comment…',
-            resolve: 'Describe the solution…',
-            cancel: 'Reason for cancelling…'
-        };
+        if (isOpen) {
+            var commentBtn = document.getElementById('ticket-comment-btn');
+            var resolveBtn = document.getElementById('ticket-resolve-btn');
+            var cancelBtn = document.getElementById('ticket-cancel-btn');
+            var buttons = [commentBtn, resolveBtn, cancelBtn];
 
-        commentBtn.addEventListener('mouseenter', function () { textarea.placeholder = placeholders.comment; });
-        commentBtn.addEventListener('focus', function () { textarea.placeholder = placeholders.comment; });
-        resolveBtn.addEventListener('mouseenter', function () { textarea.placeholder = placeholders.resolve; });
-        resolveBtn.addEventListener('focus', function () { textarea.placeholder = placeholders.resolve; });
-        cancelBtn.addEventListener('mouseenter', function () { textarea.placeholder = placeholders.cancel; });
-        cancelBtn.addEventListener('focus', function () { textarea.placeholder = placeholders.cancel; });
+            var placeholders = {
+                comment: 'Add a comment…',
+                resolve: 'Describe the solution…',
+                cancel: 'Describe the reason for cancelling…'
+            };
 
-        resolveBtn.addEventListener('click', function (e) {
-            if (!confirm('Resolve this ticket?')) {
+            commentBtn.addEventListener('mouseenter', function () { textarea.placeholder = placeholders.comment; });
+            commentBtn.addEventListener('focus', function () { textarea.placeholder = placeholders.comment; });
+            resolveBtn.addEventListener('mouseenter', function () { textarea.placeholder = placeholders.resolve; });
+            resolveBtn.addEventListener('focus', function () { textarea.placeholder = placeholders.resolve; });
+            cancelBtn.addEventListener('mouseenter', function () { textarea.placeholder = placeholders.cancel; });
+            cancelBtn.addEventListener('focus', function () { textarea.placeholder = placeholders.cancel; });
+
+            resolveBtn.addEventListener('click', function (e) {
                 e.preventDefault();
-            }
-        });
-        cancelBtn.addEventListener('click', function (e) {
-            if (!confirm('Cancel this ticket?')) {
-                e.preventDefault();
-            }
-        });
-
-        form.addEventListener('submit', function () {
-            buttons.forEach(function (btn) {
-                btn.disabled = true;
+                window.showConfirm('Resolve this ticket?').then(function (ok) {
+                    if (ok) {
+                        form.requestSubmit(resolveBtn);
+                    }
+                });
             });
-        });
+
+            cancelBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                window.showConfirm('Cancel this ticket?').then(function (ok) {
+                    if (ok) {
+                        form.requestSubmit(cancelBtn);
+                    }
+                });
+            });
+
+            form.addEventListener('submit', function () {
+                buttons.forEach(function (btn) {
+                    btn.disabled = true;
+                });
+            });
+        } else {
+            var reopenBtn = document.getElementById('ticket-reopen-btn');
+
+            reopenBtn.addEventListener('mouseenter', function () { textarea.placeholder = 'Describe why you are reopening…'; });
+            reopenBtn.addEventListener('focus', function () { textarea.placeholder = 'Describe why you are reopening…'; });
+
+            reopenBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                window.showConfirm('Reopen this ticket?').then(function (ok) {
+                    if (ok) {
+                        form.requestSubmit(reopenBtn);
+                    }
+                });
+            });
+
+            form.addEventListener('submit', function () {
+                reopenBtn.disabled = true;
+            });
+        }
     }
 
     function historyItemHtml(h, ticketId) {
@@ -372,6 +447,9 @@ document.addEventListener('DOMContentLoaded', function () {
             case 'CANCELLED':
                 text = performer + ' Cancelled ticket' + (h.commentText ? ' with reason:' : '.');
                 dotClass = 'dot-cancelled';
+                break;
+            case 'REOPENED':
+                text = performer + ' Reopened ticket' + (h.commentText ? ' with reason:' : '.');
                 break;
             default:
                 text = performer + ' updated the ticket.';
@@ -482,6 +560,11 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
+    var createModal = document.getElementById('create-ticket-modal');
+    if (createModal && createModal.getAttribute('data-has-errors') === 'true') {
+        createModal.showModal();
+    }
+
     var categorySelect = document.getElementById('ct-category');
     var subcategorySelect = document.getElementById('ct-subcategory');
 
@@ -518,7 +601,10 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function (subcategories) {
                 var html = '<option value="">Optional</option>';
                 subcategories.forEach(function (sc) {
-                    html += '<option value="' + sc.id + '">' + escapeSubcategoryHtml(sc.name) + '</option>';
+                    if (!sc.active && String(sc.id) !== String(selectedValue)) {
+                        return;
+                    }
+                    html += '<option value="' + sc.id + '">' + escapeSubcategoryHtml(sc.name) + (sc.active ? '' : ' (Inactive)') + '</option>';
                 });
                 subcategorySelect.innerHTML = html;
                 if (selectedValue) {

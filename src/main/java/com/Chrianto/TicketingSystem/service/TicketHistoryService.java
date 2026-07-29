@@ -71,12 +71,14 @@ public class TicketHistoryService {
                 }
                 h.setComment(comment);
             }
-            case COMMENT_ADDED -> {
+            case COMMENT_ADDED, REOPENED -> {
                 if (comment == null) {
                     throw new IllegalArgumentException("No comment typed");
                 }
                 h.setComment(comment);
             }
+
+
             default -> throw new IllegalArgumentException("Unhandled TicketAction: " + ticketAction);
         }
 

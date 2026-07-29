@@ -1,6 +1,7 @@
 package com.Chrianto.TicketingSystem.controller.view;
 
 import com.Chrianto.TicketingSystem.dto.request.UserRegisterRequest;
+import com.Chrianto.TicketingSystem.entity.enums.UserRole;
 import com.Chrianto.TicketingSystem.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,18 +34,28 @@ public class UserViewController {
     @PreAuthorize("hasRole('ADMIN')")
     public String newUserForm(Model model) {
         model.addAttribute("userRegisterRequest", new UserRegisterRequest());
+        model.addAttribute("roles", UserRole.values());
         return "users/form";
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public String createUser(@Valid @ModelAttribute("userRegisterRequest") UserRegisterRequest req,
-                              BindingResult bindingResult) {
+                              BindingResult bindingResult,
+                              Model model) {
         if (bindingResult.hasErrors()) {
+            model.addAttribute("roles", UserRole.values());
             return "users/form";
         }
         userService.registerUser(req);
-        return "redirect:/users";
+        return "redirect:/users?registered=true";
+    }
+
+    @PostMapping("/{userId}/reset-password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String resetPassword(@PathVariable Long userId) {
+        userService.resetPassword(userId);
+        return "redirect:/users?passwordReset=true";
     }
 
     @PostMapping("/{userId}/delete")

@@ -85,6 +85,25 @@ a {
     color: var(--color-text-muted);
 }
 
+.navbar-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.navbar-avatar:hover {
+    background: var(--color-primary-hover);
+}
+
 .btn-link {
     background: none;
     border: none;
@@ -115,6 +134,30 @@ a {
 .page-header h1 {
     font-size: 22px;
     margin: 0;
+}
+
+.page-tabs {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.page-tab {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
+}
+
+.page-tab:hover {
+    color: var(--color-text);
+}
+
+.page-tab.active {
+    color: var(--color-text);
+    border-bottom-color: var(--color-primary);
 }
 
 /* Buttons */
@@ -155,6 +198,7 @@ a {
 /* Filters */
 .filters {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 16px;
 }
@@ -288,6 +332,14 @@ dialog.modal-dialog[open] {
 
 #ticket-modal.modal-dialog {
     height: 680px;
+}
+
+.modal-dialog-sm {
+    width: min(400px, 90vw);
+}
+
+.modal-dialog-sm .modal-body {
+    text-align: center;
 }
 
 dialog.modal-dialog::backdrop {
@@ -553,13 +605,13 @@ dialog.modal-dialog::backdrop {
 
 #modal-body.ticket-form input:disabled,
 #modal-body.ticket-form select:disabled {
-    padding: 5px 0;
+    padding: 5px 0 5px 6px;
 }
 
 #modal-body.ticket-form input,
 #modal-body.ticket-form select,
 #modal-body.ticket-form textarea {
-    font-size: 15.5px;
+    font-size: 14.5px;
 }
 
 #modal-body.ticket-form label {
@@ -711,16 +763,16 @@ dialog.modal-dialog::backdrop {
     gap: 8px;
 }
 
+.ticket-action-buttons.ticket-action-buttons-spread {
+    justify-content: space-between;
+}
+
+.ticket-action-buttons.ticket-action-buttons-center {
+    justify-content: center;
+}
+
 .ticket-action-buttons .btn {
     padding: 6px 12px;
-}
-
-#ticket-comment-btn {
-    margin-right: auto;
-}
-
-#ticket-cancel-btn {
-    margin-left: 8px;
 }
 
 .btn-danger {
@@ -731,6 +783,16 @@ dialog.modal-dialog::backdrop {
 
 .btn-danger:hover {
     background: #b91c1c;
+}
+
+.btn-success {
+    background: var(--status-resolved-text);
+    border-color: var(--status-resolved-text);
+    color: #fff;
+}
+
+.btn-success:hover {
+    background: #14532d;
 }
 
 /* Auth */
@@ -809,6 +871,51 @@ dialog.modal-dialog::backdrop {
     font-weight: 600;
 }
 
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-email {
+    color: var(--color-text-muted);
+    font-size: 13px;
+}
+
+.entity-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.role-ADMIN {
+    background: var(--priority-critical-bg);
+    color: var(--priority-critical-text);
+}
+
+.role-USER {
+    background: var(--priority-low-bg);
+    color: var(--priority-low-text);
+}
+
+.success-banner {
+    background: var(--status-resolved-bg);
+    color: var(--status-resolved-text);
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.page-narrow {
+    max-width: 480px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+}
+
 .btn-link-danger {
     background: none;
     border: none;
@@ -875,4 +982,126 @@ dialog.modal-dialog::backdrop {
     border-radius: var(--radius);
     border: 1px solid var(--color-border);
     font-size: 13px;
+}
+
+/* Active/inactive entity states (Categories, Subcategories, Departments) */
+.entity-name-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.entity-status-badge.status-inactive {
+    background: var(--status-cancelled-bg);
+    color: var(--status-cancelled-text);
+}
+
+.entity-card-inactive {
+    opacity: 0.65;
+}
+
+.subcategory-item-inactive {
+    opacity: 0.65;
+}
+
+.entity-list-divider {
+    font-size: 12.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    margin: 6px 0 -2px;
+}
+
+/* Hidden per-entry menu (⋮) with edit/activate/delete, kept out of the way on purpose */
+.entity-menu {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.entity-menu > summary {
+    list-style: none;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 8px;
+    border-radius: var(--radius);
+}
+
+.entity-menu > summary::-webkit-details-marker,
+.entity-menu > summary::marker {
+    display: none;
+    content: "";
+}
+
+.entity-menu > summary:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.entity-menu-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 200px;
+    z-index: 5;
+}
+
+.entity-menu-panel form {
+    display: flex;
+    gap: 6px;
+}
+
+.entity-menu-panel input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 13px;
+}
+
+.entity-menu-edit {
+    padding-bottom: 6px;
+}
+
+.entity-menu-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin: 4px -8px;
+}
+
+.entity-menu-action {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 7px 8px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.entity-menu-action:hover {
+    background: var(--color-bg);
+}
+
+.entity-menu-action-danger {
+    color: var(--color-danger);
+}
+
+.entity-menu-action-danger:hover {
+    background: var(--priority-critical-bg);
+    color: var(--priority-critical-text);
 }

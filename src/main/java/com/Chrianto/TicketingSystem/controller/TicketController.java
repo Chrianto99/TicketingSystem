@@ -65,6 +65,13 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.cancelTicket(ticketId, req, currentUser));
     }
 
+    @PatchMapping("/{ticketId}/reopen")
+    public ResponseEntity<TicketResponse> reopenTicket(@PathVariable Long ticketId,
+                                                        @Valid @RequestBody TicketChangeStatusRequest req,
+                                                        @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(ticketService.reopenTicket(ticketId, req, currentUser));
+    }
+
     @PostMapping("{ticketId}/comments")
     public ResponseEntity<TicketResponse> commentOnTicket(@PathVariable Long ticketId,
                                                        @Valid @RequestBody TicketChangeStatusRequest req,
@@ -88,8 +95,12 @@ public class TicketController {
     public ResponseEntity<Page<TicketResponse>> getAllTickets(
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) TicketPriority priority,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long createdByUserId,
+            @RequestParam(required = false) Long assignedToUserId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(ticketService.getAllTickets(status, priority, pageable));
+        return ResponseEntity.ok(ticketService.getAllTickets(status, priority, departmentId, categoryId, createdByUserId, assignedToUserId, pageable));
     }
 
     @DeleteMapping("/{ticketId}")

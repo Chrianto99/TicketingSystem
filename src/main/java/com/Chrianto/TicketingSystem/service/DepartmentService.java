@@ -23,6 +23,7 @@ public class DepartmentService {
         Department department = new Department();
 
         department.setName(req.getName());
+        department.setActive(true);
 
         department = departmentRepository.save(department);
 
@@ -30,9 +31,32 @@ public class DepartmentService {
     }
 
     @Transactional
+    public DepartmentResponse updateDepartmentName(Long departmentId, String name) {
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Department not found with id: " + departmentId));
+
+        department.setName(name);
+        department = departmentRepository.save(department);
+
+        return toResponse(department);
+    }
+
+    @Transactional
+    public void toggleDepartmentActiveState(Long departmentId) {
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Department not found with id: " + departmentId));
+
+        department.setActive(!department.isActive());
+        departmentRepository.save(department);
+    }
+
+    @Transactional
     public void deleteDepartment(Long departmentId) {
-        if (!departmentRepository.existsById(departmentId)) {
-            throw new EntityNotFoundException("Department not found with id: " + departmentId);
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Department not found with id: " + departmentId));
+
+        if (department.isActive()) {
+            throw new IllegalStateException("Only deactivated departments can be deleted");
         }
 
         ticketRepository.nullifyDepartment(departmentId);
@@ -50,6 +74,7 @@ public class DepartmentService {
         return DepartmentResponse.builder()
                 .id(d.getId())
                 .name(d.getName())
+                .active(d.isActive())
                 .build();
     }
 

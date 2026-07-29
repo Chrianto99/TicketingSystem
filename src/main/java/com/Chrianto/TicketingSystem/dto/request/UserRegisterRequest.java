@@ -12,12 +12,11 @@ public class UserRegisterRequest {
     @NotBlank
     private String username;
 
-    @NotBlank
-    @Size(min = 8, message = "Password must be at least 8 characters")
-    private String password;
-
     @NotBlank @Email
     private String email;
+
+    @NotBlank
+    private String phoneNumber;
 
     @NotNull
     private UserRole role;

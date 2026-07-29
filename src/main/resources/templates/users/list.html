@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Users</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+<div th:replace="~{fragments/nav :: modals}"></div>
+
+<main class="page">
+    <div class="page-header">
+        <h1>Users</h1>
+        <a th:href="@{/users/new}" class="btn btn-primary" sec:authorize="hasRole('ADMIN')">+ New User</a>
+    </div>
+
+    <p th:if="${param.registered != null}" class="success-banner">User created. Temporary password: <strong>qwerty123</strong></p>
+    <p th:if="${param.passwordReset != null}" class="success-banner">Password reset to <strong>qwerty123</strong>.</p>
+
+    <div class="entity-list">
+        <div class="entity-card" th:each="u : ${users}">
+            <div class="entity-card-header">
+                <div class="user-info">
+                    <span class="entity-name" th:text="${u.username}"></span>
+                    <span class="badge" th:classappend="'role-' + ${u.role}" th:text="${u.role}"></span>
+                    <span class="user-email" th:text="${u.email}"></span>
+                    <span class="user-email" th:if="${u.phoneNumber}" th:text="${u.phoneNumber}"></span>
+                </div>
+                <div class="entity-card-actions" sec:authorize="hasRole('ADMIN')">
+                    <form method="post" th:action="@{/users/{id}/reset-password(id=${u.id})}"
+                          data-confirm="Reset this user's password to qwerty123?">
+                        <button type="submit" class="btn-link">Reset Password</button>
+                    </form>
+                    <form method="post" th:action="@{/users/{id}/delete(id=${u.id})}"
+                          data-confirm="Delete this user?">
+                        <button type="submit" class="btn-link-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <p th:if="${users.isEmpty()}" class="empty-state">No users yet.</p>
+    </div>
+</main>
+
+</body>
+</html>

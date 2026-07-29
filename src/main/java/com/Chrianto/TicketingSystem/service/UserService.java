@@ -1,5 +1,7 @@
 package com.Chrianto.TicketingSystem.service;
 
+import com.Chrianto.TicketingSystem.dto.request.ChangePasswordRequest;
+import com.Chrianto.TicketingSystem.dto.request.UserProfileUpdateRequest;
 import com.Chrianto.TicketingSystem.dto.request.UserRegisterRequest;
 import com.Chrianto.TicketingSystem.dto.response.UserResponse;
 import com.Chrianto.TicketingSystem.entity.User;
@@ -18,6 +20,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class UserService {
+
+    private static final String DEFAULT_PASSWORD = "qwerty123";
+
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
     private final TicketHistoryRepository ticketHistoryRepository;
@@ -28,11 +33,44 @@ public class UserService {
         User user = new User();
         user.setUsername(req.getUsername());
         user.setEmail(req.getEmail());
-        user.setPassword(passwordEncoder.encode(req.getPassword()));
+        user.setPhoneNumber(req.getPhoneNumber());
+        user.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
         user.setRole(req.getRole());
 
         user = userRepository.save(user);
         return toResponse(user);
+    }
+
+    public void resetPassword(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+
+        user.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
+        userRepository.save(user);
+    }
+
+    public UserResponse updateProfile(Long userId, UserProfileUpdateRequest req) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+
+        user.setEmail(req.getEmail());
+        user = userRepository.save(user);
+        return toResponse(user);
+    }
+
+    public void changePassword(Long userId, ChangePasswordRequest req) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+
+        if (!passwordEncoder.matches(req.getCurrentPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect");
+        }
+        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new IllegalArgumentException("New password and confirmation do not match");
+        }
+
+        user.setPassword(passwordEncoder.encode(req.getNewPassword()));
+        userRepository.save(user);
     }
 
     public List<UserResponse> getAllUsers() {
@@ -70,6 +108,9 @@ public class UserService {
         return UserResponse.builder()
                 .id(u.getId())
                 .username(u.getUsername())
+                .email(u.getEmail())
+                .phoneNumber(u.getPhoneNumber())
+                .role(u.getRole())
                 .build();
     }
 

@@ -130,9 +130,6 @@ public class TicketService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
 
-//        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
-//            throw new IllegalStateException("Only the assigned user can resolve this ticket");
-//        }
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
@@ -156,9 +153,6 @@ public class TicketService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
 
-//        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
-//            throw new IllegalStateException("Only the assigned user can cancel this ticket");
-//        }
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
@@ -182,9 +176,6 @@ public class TicketService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
 
-//        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
-//            throw new IllegalStateException("Only the assigned user can comment");
-//        }
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
@@ -205,10 +196,6 @@ public class TicketService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + req.getAssignedTo()));
 
 
-//        if (ticket.getAssignedUser() == null || !ticket.getAssignedUser().getId().equals(performedBy.getId())) {
-//            throw new IllegalStateException("Only the assigned user can reassign this ticket");
-//        }
-
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
             throw new IllegalStateException("Ticket is already " + ticket.getStatus());
         }
@@ -225,6 +212,29 @@ public class TicketService {
 
         return toResponse(ticket);
     }
+
+    public TicketResponse reopenTicket(Long ticketId, TicketChangeStatusRequest req, User performedBy) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+
+
+        if (ticket.getStatus() == TicketStatus.OPEN) {
+            throw new IllegalStateException("Ticket is already " + ticket.getStatus());
+        }
+
+        Comment comment = postComment(ticket, performedBy, req.getCommentText());
+
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setLastModifiedBy(performedBy);
+        ticket.setUpdatedAt(LocalDateTime.now());
+        ticket = ticketRepository.save(ticket);
+
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.REOPENED, null, comment);
+
+        return toResponse(ticket);
+    }
+
+
 
 
     private void validateSubcategoryBelongsToCategory(Category category, Subcategory subcategory) {
@@ -254,8 +264,10 @@ public class TicketService {
         return toResponse(ticket);
     }
 
-    public Page<TicketResponse> getAllTickets(TicketStatus status, TicketPriority priority, Pageable pageable){
-        return ticketRepository.search(status, priority, pageable)
+    public Page<TicketResponse> getAllTickets(TicketStatus status, TicketPriority priority, Long departmentId,
+                                               Long categoryId, Long createdByUserId, Long assignedToUserId,
+                                               Pageable pageable){
+        return ticketRepository.search(status, priority, departmentId, categoryId, createdByUserId, assignedToUserId, pageable)
                 .map(this::toResponse);
     }
 

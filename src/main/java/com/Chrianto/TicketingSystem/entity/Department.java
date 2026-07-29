@@ -14,6 +14,9 @@ public class Department {
     @Column(nullable = false, unique = true)
     private String name;
 
+    @Column(nullable = false)
+    private boolean isActive;
+
 //    @Column(name = "default_number")
 //    private String defaultNumber; // optional, nullable by default
 //

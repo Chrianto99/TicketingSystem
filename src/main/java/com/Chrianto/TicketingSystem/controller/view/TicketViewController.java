@@ -5,12 +5,13 @@ import com.Chrianto.TicketingSystem.dto.request.TicketChangeStatusRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketCreateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketReassignRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketUpdateRequest;
+import com.Chrianto.TicketingSystem.dto.response.CategoryResponse;
+import com.Chrianto.TicketingSystem.dto.response.DepartmentResponse;
 import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
 import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
 import com.Chrianto.TicketingSystem.service.CategoryService;
 import com.Chrianto.TicketingSystem.service.DepartmentService;
-import com.Chrianto.TicketingSystem.service.TicketHistoryService;
 import com.Chrianto.TicketingSystem.service.TicketService;
 import com.Chrianto.TicketingSystem.service.UserService;
 import jakarta.validation.Valid;
@@ -24,8 +25,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/tickets")
@@ -33,7 +38,6 @@ import org.springframework.web.bind.annotation.*;
 public class TicketViewController {
 
     private final TicketService ticketService;
-    private final TicketHistoryService ticketHistoryService;
     private final DepartmentService departmentService;
     private final CategoryService categoryService;
     private final UserService userService;
@@ -48,10 +52,13 @@ public class TicketViewController {
     @GetMapping
     public String listTickets(@RequestParam(required = false) TicketStatus status,
                                @RequestParam(required = false) TicketPriority priority,
+                               @RequestParam(required = false) Long departmentId,
+                               @RequestParam(required = false) Long categoryId,
+                               @RequestParam(required = false) String scope,
                                @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
                                @AuthenticationPrincipal User currentUser,
                                Model model) {
-        populateListData(model, status, priority, pageable);
+        populateListData(model, status, priority, departmentId, categoryId, scope, currentUser, pageable);
         populateCreateFormData(model, currentUser);
         return "tickets/list";
     }
@@ -62,11 +69,14 @@ public class TicketViewController {
                                 @RequestParam(defaultValue = "open") String action,
                                 @RequestParam(required = false) TicketStatus status,
                                 @RequestParam(required = false) TicketPriority priority,
+                                @RequestParam(required = false) Long departmentId,
+                                @RequestParam(required = false) Long categoryId,
+                                @RequestParam(required = false) String scope,
                                 @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
                                 @AuthenticationPrincipal User currentUser,
                                 Model model) {
         if (bindingResult.hasErrors()) {
-            populateListData(model, status, priority, pageable);
+            populateListData(model, status, priority, departmentId, categoryId, scope, currentUser, pageable);
             populateCreateFormData(model, currentUser);
             return "tickets/list";
         }
@@ -77,9 +87,8 @@ public class TicketViewController {
     }
 
     @GetMapping("/{ticketId}")
-    public String viewTicket(@PathVariable Long ticketId, Model model) {
-        populateTicketDetail(ticketId, model);
-        return "tickets/detail";
+    public String viewTicket(@PathVariable Long ticketId) {
+        return "redirect:/tickets?openTicket=" + ticketId;
     }
 
     @GetMapping("/{ticketId}/edit")
@@ -94,8 +103,9 @@ public class TicketViewController {
                               @Valid @ModelAttribute("ticketUpdateRequest") TicketUpdateRequest req,
                               BindingResult bindingResult,
                               @AuthenticationPrincipal User currentUser,
-                              Model model) {
+                              RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
             return "redirect:/tickets?openTicket=" + ticketId;
         }
         ticketService.editTicket(ticketId, req, currentUser);
@@ -107,10 +117,10 @@ public class TicketViewController {
                                  @Valid @ModelAttribute("commentRequest") TicketChangeStatusRequest req,
                                  BindingResult bindingResult,
                                  @AuthenticationPrincipal User currentUser,
-                                 Model model) {
+                                 RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
-            populateTicketDetail(ticketId, model);
-            return "tickets/detail";
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/tickets?openTicket=" + ticketId;
         }
         ticketService.resolveTicket(ticketId, req, currentUser);
         return "redirect:/tickets";
@@ -121,12 +131,26 @@ public class TicketViewController {
                                 @Valid @ModelAttribute("commentRequest") TicketChangeStatusRequest req,
                                 BindingResult bindingResult,
                                 @AuthenticationPrincipal User currentUser,
-                                Model model) {
+                                RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
-            populateTicketDetail(ticketId, model);
-            return "tickets/detail";
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/tickets?openTicket=" + ticketId;
         }
         ticketService.cancelTicket(ticketId, req, currentUser);
+        return "redirect:/tickets";
+    }
+
+    @PostMapping("/{ticketId}/reopen")
+    public String reopenTicket(@PathVariable Long ticketId,
+                                @Valid @ModelAttribute("commentRequest") TicketChangeStatusRequest req,
+                                BindingResult bindingResult,
+                                @AuthenticationPrincipal User currentUser,
+                                RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/tickets?openTicket=" + ticketId;
+        }
+        ticketService.reopenTicket(ticketId, req, currentUser);
         return "redirect:/tickets";
     }
 
@@ -135,10 +159,10 @@ public class TicketViewController {
                                    @Valid @ModelAttribute("commentRequest") TicketChangeStatusRequest req,
                                    BindingResult bindingResult,
                                    @AuthenticationPrincipal User currentUser,
-                                   Model model) {
+                                   RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
-            populateTicketDetail(ticketId, model);
-            return "tickets/detail";
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/tickets?openTicket=" + ticketId;
         }
         ticketService.commentOnTicket(ticketId, req, currentUser);
         return "redirect:/tickets";
@@ -149,8 +173,10 @@ public class TicketViewController {
                                @PathVariable Long commentId,
                                @Valid @ModelAttribute("commentUpdateRequest") CommentUpdateRequest req,
                                BindingResult bindingResult,
-                               @AuthenticationPrincipal User currentUser) {
+                               @AuthenticationPrincipal User currentUser,
+                               RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
             return "redirect:/tickets?openTicket=" + ticketId;
         }
         ticketService.editComment(commentId, req, currentUser);
@@ -162,10 +188,10 @@ public class TicketViewController {
                                   @Valid @ModelAttribute("reassignRequest") TicketReassignRequest req,
                                   BindingResult bindingResult,
                                   @AuthenticationPrincipal User currentUser,
-                                  Model model) {
+                                  RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
-            populateTicketDetail(ticketId, model);
-            return "tickets/detail";
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/tickets?openTicket=" + ticketId;
         }
         ticketService.reassignTicket(ticketId, req, currentUser);
         return "redirect:/tickets";
@@ -178,28 +204,31 @@ public class TicketViewController {
         return "redirect:/tickets";
     }
 
-    private void populateTicketDetail(Long ticketId, Model model) {
-        model.addAttribute("ticket", ticketService.getTicketById(ticketId));
-        model.addAttribute("history", ticketHistoryService.getTicketHistory(ticketId));
-        if (!model.containsAttribute("commentRequest")) {
-            model.addAttribute("commentRequest", new TicketChangeStatusRequest());
-        }
-        if (!model.containsAttribute("reassignRequest")) {
-            model.addAttribute("reassignRequest", new TicketReassignRequest());
-        }
+    private void flashValidationErrors(BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+        String message = bindingResult.getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .collect(Collectors.joining(", "));
+        redirectAttributes.addFlashAttribute("errorMessage", message);
     }
 
-    private void populateListData(Model model, TicketStatus status, TicketPriority priority, Pageable pageable) {
-        model.addAttribute("ticketPage", ticketService.getAllTickets(status, priority, pageable));
+    private void populateListData(Model model, TicketStatus status, TicketPriority priority, Long departmentId,
+                                   Long categoryId, String scope, User currentUser, Pageable pageable) {
+        Long createdByUserId = "created".equals(scope) ? currentUser.getId() : null;
+        Long assignedToUserId = "assigned".equals(scope) ? currentUser.getId() : null;
+        model.addAttribute("ticketPage", ticketService.getAllTickets(status, priority, departmentId, categoryId,
+                createdByUserId, assignedToUserId, pageable));
         model.addAttribute("status", status);
         model.addAttribute("priority", priority);
+        model.addAttribute("departmentId", departmentId);
+        model.addAttribute("categoryId", categoryId);
+        model.addAttribute("scope", scope);
         model.addAttribute("statuses", TicketStatus.values());
         model.addAttribute("priorities", TicketPriority.values());
     }
 
     private void populateCreateFormData(Model model, User currentUser) {
-        model.addAttribute("departments", departmentService.getAllDepartments());
-        model.addAttribute("categories", categoryService.getAllCategories());
+        model.addAttribute("departments", departmentService.getAllDepartments().stream().filter(DepartmentResponse::isActive).toList());
+        model.addAttribute("categories", categoryService.getAllCategories().stream().filter(CategoryResponse::isActive).toList());
         model.addAttribute("users", userService.getAllUsers());
         if (!model.containsAttribute("ticketCreateRequest")) {
             TicketCreateRequest req = new TicketCreateRequest();

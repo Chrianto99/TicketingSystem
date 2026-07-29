@@ -2,6 +2,7 @@ package com.Chrianto.TicketingSystem.controller.view;
 
 import com.Chrianto.TicketingSystem.dto.request.CategoryRequest;
 import com.Chrianto.TicketingSystem.dto.request.SubcategoryRequest;
+import com.Chrianto.TicketingSystem.dto.response.CategoryResponse;
 import com.Chrianto.TicketingSystem.dto.response.SubcategoryResponse;
 import com.Chrianto.TicketingSystem.service.CategoryService;
 import com.Chrianto.TicketingSystem.service.SubcategoryService;
@@ -48,6 +49,20 @@ public class CategoryViewController {
         return "redirect:/categories";
     }
 
+    @PostMapping("/{categoryId}/edit")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String editCategory(@PathVariable Long categoryId, @RequestParam String name) {
+        categoryService.updateCategoryName(categoryId, name);
+        return "redirect:/categories";
+    }
+
+    @PostMapping("/{categoryId}/toggle-active")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String toggleCategoryActive(@PathVariable Long categoryId) {
+        categoryService.toggleCategoryActiveState(categoryId);
+        return "redirect:/categories";
+    }
+
     @PostMapping("/{categoryId}/subcategories")
     @PreAuthorize("hasRole('ADMIN')")
     public String createSubcategory(@PathVariable Long categoryId, @RequestParam String name) {
@@ -65,13 +80,35 @@ public class CategoryViewController {
         return "redirect:/categories";
     }
 
+    @PostMapping("/{categoryId}/subcategories/{subcategoryId}/edit")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String editSubcategory(@PathVariable Long categoryId, @PathVariable Long subcategoryId, @RequestParam String name) {
+        subcategoryService.updateSubcategoryName(subcategoryId, name);
+        return "redirect:/categories";
+    }
+
+    @PostMapping("/{categoryId}/subcategories/{subcategoryId}/toggle-active")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String toggleSubcategoryActive(@PathVariable Long categoryId, @PathVariable Long subcategoryId) {
+        subcategoryService.toggleSubcategoryActiveState(subcategoryId);
+        return "redirect:/categories";
+    }
+
     private void populateListModel(Model model) {
         List<SubcategoryResponse> allSubcategories = subcategoryService.getAllSubcategories(null);
-        Map<Long, List<SubcategoryResponse>> subcategoriesByCategory = allSubcategories.stream()
+        Map<Long, List<SubcategoryResponse>> activeSubcategoriesByCategory = allSubcategories.stream()
+                .filter(SubcategoryResponse::isActive)
+                .collect(Collectors.groupingBy(SubcategoryResponse::getCategoryId));
+        Map<Long, List<SubcategoryResponse>> inactiveSubcategoriesByCategory = allSubcategories.stream()
+                .filter(s -> !s.isActive())
                 .collect(Collectors.groupingBy(SubcategoryResponse::getCategoryId));
 
-        model.addAttribute("categories", categoryService.getAllCategories());
-        model.addAttribute("subcategoriesByCategory", subcategoriesByCategory);
+        List<CategoryResponse> allCategories = categoryService.getAllCategories();
+
+        model.addAttribute("activeCategories", allCategories.stream().filter(CategoryResponse::isActive).toList());
+        model.addAttribute("inactiveCategories", allCategories.stream().filter(c -> !c.isActive()).toList());
+        model.addAttribute("activeSubcategoriesByCategory", activeSubcategoriesByCategory);
+        model.addAttribute("inactiveSubcategoriesByCategory", inactiveSubcategoriesByCategory);
         if (!model.containsAttribute("categoryRequest")) {
             model.addAttribute("categoryRequest", new CategoryRequest());
         }

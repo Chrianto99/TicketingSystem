@@ -6,6 +6,6 @@ import lombok.*;
 public class DepartmentResponse {
     private Long id;
     private String name;
+    private boolean active;
 //    private String defaultNumber;
-//    private boolean active;
 }

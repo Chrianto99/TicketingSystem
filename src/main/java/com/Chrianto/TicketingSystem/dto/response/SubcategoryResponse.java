@@ -8,4 +8,5 @@ public class SubcategoryResponse {
     private String name;
     private Long categoryId;
     private String categoryName;
+    private boolean active;
 }

@@ -38,4 +38,18 @@ public class DepartmentController {
         departmentService.deleteDepartment(departmentId);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{departmentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DepartmentResponse> updateDepartment(@PathVariable Long departmentId,
+                                                                 @Valid @RequestBody DepartmentCreateRequest req) {
+        return ResponseEntity.ok(departmentService.updateDepartmentName(departmentId, req.getName()));
+    }
+
+    @PatchMapping("/{departmentId}/active")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> toggleDepartmentActive(@PathVariable Long departmentId) {
+        departmentService.toggleDepartmentActiveState(departmentId);
+        return ResponseEntity.noContent().build();
+    }
 }

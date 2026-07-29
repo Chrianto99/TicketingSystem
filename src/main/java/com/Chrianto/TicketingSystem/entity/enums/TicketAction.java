@@ -8,5 +8,6 @@ public enum TicketAction {
     CANCELLED,
     PRIORITY_CHANGED,
     COMMENT_ADDED,
+    REOPENED
 
 }
