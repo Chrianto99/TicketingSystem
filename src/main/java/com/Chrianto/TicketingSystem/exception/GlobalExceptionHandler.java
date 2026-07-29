@@ -1,5 +1,6 @@
 package com.Chrianto.TicketingSystem.exception;
 
+import com.Chrianto.TicketingSystem.controller.AttachmentController;
 import com.Chrianto.TicketingSystem.controller.CategoryController;
 import com.Chrianto.TicketingSystem.controller.DepartmentController;
 import com.Chrianto.TicketingSystem.controller.SubcategoryController;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,6 +20,7 @@ import java.util.Map;
 // Scoped to the JSON REST controllers only — view controllers are handled by
 // ViewExceptionHandler, which redirects back to the page instead of rendering JSON.
 @RestControllerAdvice(assignableTypes = {
+        AttachmentController.class,
         CategoryController.class,
         DepartmentController.class,
         SubcategoryController.class,
@@ -56,5 +59,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", "This entry conflicts with an existing record"));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, String>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(Map.of("error", "File is too large. Maximum allowed size is 10MB."));
     }
 }

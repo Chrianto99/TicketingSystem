@@ -34,6 +34,7 @@ public class TicketService {
     private final SubcategoryRepository subcategoryRepository;
 
     private final TicketHistoryService ticketHistoryService;
+    private final AttachmentService attachmentService;
 
     public TicketResponse createTicket(TicketCreateRequest req, User creator) {
         User assignee = userRepository.findById(req.getAssignedUserId())
@@ -277,6 +278,7 @@ public class TicketService {
             throw new EntityNotFoundException("Ticket not found with id: " + ticketId);
         }
 
+        attachmentService.deleteAttachmentsForTicket(ticketId);
         ticketHistoryService.deleteByTicketId(ticketId);
         commentRepository.deleteByTicketId(ticketId);
         ticketRepository.deleteById(ticketId);

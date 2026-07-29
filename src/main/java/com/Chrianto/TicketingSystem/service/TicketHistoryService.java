@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -95,6 +96,9 @@ public class TicketHistoryService {
                 .assignedToUsername(h.getAssignedTo() != null ? h.getAssignedTo().getUsername() : null)
                 .commentId(h.getComment() != null ? h.getComment().getId() : null)
                 .commentText(h.getComment() != null ? h.getComment().getText() : null)
+                .attachments(h.getComment() != null
+                        ? h.getComment().getAttachments().stream().map(AttachmentService::toResponse).collect(Collectors.toList())
+                        : List.of())
                 .timestamp(h.getTimestamp())
                 .build();
     }

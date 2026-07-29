@@ -90,6 +90,7 @@ document.addEventListener('DOMContentLoaded', function () {
         wireReassign();
         wireCommentEdits();
         wireInfoCollapse();
+        wireAttachments(ticket.id);
 
         if (canEdit) {
             document.getElementById('td-edit-toggle').addEventListener('click', function () {
@@ -462,10 +463,13 @@ document.addEventListener('DOMContentLoaded', function () {
             var canEditComment = h.commentId && currentUserId && String(h.performedById) === currentUserId;
             itemHtml += '<div class="timeline-quote-wrap" id="quote-view-' + h.commentId + '">';
             itemHtml += '<p class="timeline-quote">“' + escapeHtml(h.commentText) + '”</p>';
+            itemHtml += '<button type="button" class="icon-btn attachment-toggle" data-comment-id="' + h.commentId + '" title="Attach file">📎</button>';
             if (canEditComment) {
                 itemHtml += '<button type="button" class="icon-btn comment-edit-toggle" data-comment-id="' + h.commentId + '" title="Edit comment">✎</button>';
             }
             itemHtml += '</div>';
+            itemHtml += '<input type="file" class="attachment-input" data-comment-id="' + h.commentId + '" hidden>';
+            itemHtml += attachmentsHtml(h.attachments);
             if (canEditComment) {
                 var csrfInputForComment = document.querySelector('#create-ticket-modal input[name="_csrf"]');
                 var commentCsrfToken = csrfInputForComment ? csrfInputForComment.value : '';
@@ -483,6 +487,64 @@ document.addEventListener('DOMContentLoaded', function () {
         itemHtml += '<p class="timeline-time">' + formatDate(h.timestamp) + '</p>';
         itemHtml += '</div>';
         return itemHtml;
+    }
+
+    function attachmentsHtml(attachments) {
+        if (!attachments || !attachments.length) {
+            return '';
+        }
+        var html = '<div class="attachment-list">';
+        attachments.forEach(function (a) {
+            html += '<a class="attachment-chip" href="/api/attachments/' + a.id + '">📎 ' + escapeHtml(a.fileName) + '</a>';
+        });
+        html += '</div>';
+        return html;
+    }
+
+    function wireAttachments(ticketId) {
+        document.querySelectorAll('.attachment-toggle').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var commentId = btn.getAttribute('data-comment-id');
+                document.querySelector('.attachment-input[data-comment-id="' + commentId + '"]').click();
+            });
+        });
+
+        document.querySelectorAll('.attachment-input').forEach(function (input) {
+            input.addEventListener('change', function () {
+                if (!input.files || !input.files.length) {
+                    return;
+                }
+                var commentId = input.getAttribute('data-comment-id');
+                var formData = new FormData();
+                formData.append('file', input.files[0]);
+
+                var csrfInput = document.querySelector('#create-ticket-modal input[name="_csrf"]');
+                var headers = {};
+                if (csrfInput) {
+                    formData.append('_csrf', csrfInput.value);
+                    headers['X-CSRF-TOKEN'] = csrfInput.value;
+                }
+
+                fetch('/api/comments/' + commentId + '/attachments', {
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                }).then(function (response) {
+                    if (!response.ok) {
+                        return response.json().catch(function () {
+                            return {};
+                        }).then(function (body) {
+                            throw new Error(body.error || Object.values(body)[0] || ('HTTP ' + response.status));
+                        });
+                    }
+                    return response.json();
+                }).then(function () {
+                    openTicketModal(ticketId);
+                }).catch(function (err) {
+                    window.showError('Failed to attach file: ' + err.message);
+                });
+            });
+        });
     }
 
     function wireCommentEdits() {
