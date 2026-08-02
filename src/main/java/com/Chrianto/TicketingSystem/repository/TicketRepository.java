@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     @Query("SELECT t FROM Ticket t " +
@@ -50,4 +52,14 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     @Modifying
     @Query("UPDATE Ticket t SET t.subcategory = null WHERE t.subcategory.id = :subcategoryId")
     void nullifySubcategory(@Param("subcategoryId") Long subcategoryId);
+
+    long countByCategoryId(Long categoryId);
+
+    long countBySubcategoryId(Long subcategoryId);
+
+    @Query("SELECT t.category.id, COUNT(t) FROM Ticket t WHERE t.category IS NOT NULL GROUP BY t.category.id")
+    List<Object[]> countTicketsGroupedByCategory();
+
+    @Query("SELECT t.subcategory.id, COUNT(t) FROM Ticket t WHERE t.subcategory IS NOT NULL GROUP BY t.subcategory.id")
+    List<Object[]> countTicketsGroupedBySubcategory();
 }

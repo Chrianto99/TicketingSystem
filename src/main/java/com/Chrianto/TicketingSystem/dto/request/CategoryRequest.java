@@ -5,6 +5,6 @@ import lombok.*;
 
 @Setter @Getter
 public class CategoryRequest {
-    @NotBlank
+    @NotBlank(message = "Το όνομα είναι υποχρεωτικό")
     private String name;
 }

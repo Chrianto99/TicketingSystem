@@ -6,8 +6,9 @@ import lombok.*;
 @Getter @Setter
 public class TicketChangeStatusRequest {
 
-    @NotBlank
+    @NotBlank(message = "Το σχόλιο είναι υποχρεωτικό")
     private String commentText;
 
+    private Long subcategoryId;
 
 }

@@ -2,47 +2,98 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
-    <title>Users</title>
+    <title>Χρήστες</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body>
 <div th:replace="~{fragments/nav :: nav}"></div>
 <div th:replace="~{fragments/nav :: modals}"></div>
 
+<input type="hidden" id="csrf-token" th:value="${_csrf.token}">
+<input type="hidden" id="csrf-header" th:value="${_csrf.headerName}">
+<input type="hidden" id="csrf-param" th:value="${_csrf.parameterName}">
+
 <main class="page">
     <div class="page-header">
-        <h1>Users</h1>
-        <a th:href="@{/users/new}" class="btn btn-primary" sec:authorize="hasRole('ADMIN')">+ New User</a>
+        <h1>Χρήστες</h1>
+        <a th:href="@{/users/new}" class="btn btn-primary" sec:authorize="hasRole('ADMIN')">+ Νέος Χρήστης</a>
     </div>
 
-    <p th:if="${param.registered != null}" class="success-banner">User created. Temporary password: <strong>qwerty123</strong></p>
-    <p th:if="${param.passwordReset != null}" class="success-banner">Password reset to <strong>qwerty123</strong>.</p>
+    <p th:if="${param.registered != null}" class="success-banner">Ο χρήστης δημιουργήθηκε. Προσωρινός κωδικός: <strong>qwerty123</strong></p>
+    <p th:if="${param.passwordReset != null}" class="success-banner">Ο κωδικός επαναφέρθηκε σε <strong>qwerty123</strong>.</p>
+    <p th:if="${param.deactivated != null}" class="success-banner">Ο χρήστης απενεργοποιήθηκε. Θα διαγραφεί οριστικά σε 7 ημέρες αν δεν επανενεργοποιηθεί.</p>
+    <p th:if="${param.reactivated != null}" class="success-banner">Ο χρήστης επανενεργοποιήθηκε.</p>
 
     <div class="entity-list">
-        <div class="entity-card" th:each="u : ${users}">
+        <div class="entity-card"
+             th:classappend="${!u.active} ? 'entity-card-inactive' : _"
+             th:each="u : ${users}"
+             th:attr="data-user-id=${u.id},data-username=${u.username},data-email=${u.email},data-phone=${u.phoneNumber},data-role=${u.role},data-active=${u.active},data-scheduled-deletion=${u.scheduledDeletionAt}"
+             style="cursor:pointer;">
             <div class="entity-card-header">
                 <div class="user-info">
                     <span class="entity-name" th:text="${u.username}"></span>
-                    <span class="badge" th:classappend="'role-' + ${u.role}" th:text="${u.role}"></span>
-                    <span class="user-email" th:text="${u.email}"></span>
+                    <span class="badge" th:classappend="'role-' + ${u.role}" th:text="${u.role.displayName}"></span>
+                    <span class="badge entity-status-badge status-inactive" th:if="${!u.active}">Απενεργοποιημένος</span>
+                    <span class="user-email" th:if="${u.email}" th:text="${u.email}"></span>
                     <span class="user-email" th:if="${u.phoneNumber}" th:text="${u.phoneNumber}"></span>
-                </div>
-                <div class="entity-card-actions" sec:authorize="hasRole('ADMIN')">
-                    <form method="post" th:action="@{/users/{id}/reset-password(id=${u.id})}"
-                          data-confirm="Reset this user's password to qwerty123?">
-                        <button type="submit" class="btn-link">Reset Password</button>
-                    </form>
-                    <form method="post" th:action="@{/users/{id}/delete(id=${u.id})}"
-                          data-confirm="Delete this user?">
-                        <button type="submit" class="btn-link-danger">Delete</button>
-                    </form>
                 </div>
             </div>
         </div>
 
-        <p th:if="${users.isEmpty()}" class="empty-state">No users yet.</p>
+        <p th:if="${users.isEmpty()}" class="empty-state">Δεν υπάρχουν χρήστες ακόμα.</p>
     </div>
 </main>
 
+<dialog id="user-modal" class="modal-dialog modal-dialog-sm">
+    <div class="modal-header">
+        <div class="modal-header-top">
+            <div class="modal-title-row">
+                <h2 id="user-modal-title"></h2>
+                <span id="user-modal-role-badge" class="badge"></span>
+            </div>
+            <button type="button" class="modal-close" aria-label="Κλείσιμο" onclick="document.getElementById('user-modal').close()">&times;</button>
+        </div>
+    </div>
+    <div class="modal-body ticket-form">
+        <div class="field-row">
+            <span class="field-label">Email</span>
+            <span id="user-modal-email"></span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Τηλέφωνο</span>
+            <span id="user-modal-phone"></span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Κατάσταση</span>
+            <span id="user-modal-status"></span>
+        </div>
+        <div class="field-row" id="user-modal-deletion-row" hidden>
+            <span class="field-label">Προγραμματισμένη διαγραφή</span>
+            <span id="user-modal-deletion"></span>
+        </div>
+    </div>
+    <div class="modal-footer" sec:authorize="hasRole('ADMIN')">
+        <form id="user-modal-reset-form" method="post" action="#" data-confirm="Επαναφορά του κωδικού αυτού του χρήστη σε qwerty123;">
+            <input type="hidden" name="_csrf" id="user-modal-reset-csrf">
+            <button type="submit" class="btn">Επαναφορά Κωδικού</button>
+        </form>
+        <details class="entity-menu entity-menu-up" id="user-modal-menu">
+            <summary title="Επιλογές">&#8942;</summary>
+            <div class="entity-menu-panel">
+                <form id="user-modal-reactivate-form" method="post" action="#" data-confirm="Επανενεργοποίηση αυτού του χρήστη;" hidden>
+                    <input type="hidden" name="_csrf" id="user-modal-reactivate-csrf">
+                    <button type="submit" class="entity-menu-action">Επανενεργοποίηση</button>
+                </form>
+                <form id="user-modal-delete-form" method="post" action="#" data-confirm="Απενεργοποίηση αυτού του χρήστη; Θα διαγραφεί οριστικά σε 7 ημέρες.">
+                    <input type="hidden" name="_csrf" id="user-modal-delete-csrf">
+                    <button type="submit" class="entity-menu-action entity-menu-action-danger">Διαγραφή Χρήστη</button>
+                </form>
+            </div>
+        </details>
+    </div>
+</dialog>
+
+<script th:src="@{/js/users.js}"></script>
 </body>
 </html>

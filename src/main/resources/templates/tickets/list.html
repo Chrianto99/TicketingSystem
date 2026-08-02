@@ -5,33 +5,33 @@
     <title>Tickets</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
-<body th:attr="data-current-user-id=${#authentication.principal.id}">
+<body th:attr="data-current-user-id=${#authentication.principal.id}, data-is-admin=${#authorization.expression('hasRole(''ADMIN'')')}">
 <div th:replace="~{fragments/nav :: nav}"></div>
 <div th:replace="~{fragments/nav :: modals}"></div>
 
 <main class="page">
     <div class="page-header">
         <div class="page-tabs">
-            <a th:href="@{/tickets}" th:classappend="${scope != 'assigned'} ? ' active'" class="page-tab">Tickets</a>
-            <a th:href="@{/tickets(scope='assigned')}" th:classappend="${scope == 'assigned'} ? ' active'" class="page-tab">My Tickets</a>
+            <a th:href="@{/tickets(scope='assigned')}" th:classappend="${scope == 'assigned' or scope == 'created'} ? ' active'" class="page-tab">Τα Tickets μου</a>
+            <a th:href="@{/tickets(scope='all')}" th:classappend="${scope != 'assigned' and scope != 'created'} ? ' active'" class="page-tab">Όλα τα Tickets</a>
         </div>
-        <button type="button" class="btn btn-primary" onclick="document.getElementById('create-ticket-modal').showModal()">+ New Ticket</button>
+        <button type="button" class="btn btn-primary" onclick="openCreateTicketModal()">+ Νέο Ticket</button>
     </div>
 
     <form class="filters" method="get" th:action="@{/tickets}">
 
         <select name="status" onchange="this.form.submit()">
-            <option value="">All statuses</option>
-            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${s == status}"></option>
+            <option value="ALL" th:selected="${status == null}">Όλες οι καταστάσεις</option>
+            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.displayName}" th:selected="${s == status}"></option>
         </select>
         <select name="priority" onchange="this.form.submit()">
-            <option value="">All priorities</option>
-            <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}" th:selected="${p == priority}"></option>
+            <option value="">Όλες οι προτεραιότητες</option>
+            <option th:each="p : ${priorities}" th:value="${p}" th:text="${p.displayName}" th:selected="${p == priority}"></option>
         </select>
         <select name="scope" onchange="this.form.submit()">
-            <option value="">All Users</option>
-            <option value="assigned" th:selected="${scope == 'assigned'}">Assigned to me</option>
-            <option value="created" th:selected="${scope == 'created'}">Created by me</option>
+            <option value="all" th:selected="${scope != 'assigned' and scope != 'created'}">Όλοι οι χρήστες</option>
+            <option value="assigned" th:selected="${scope == 'assigned'}">Ανατεθειμένα σε εμένα</option>
+            <option value="created" th:selected="${scope == 'created'}">Δημιουργήθηκαν από εμένα</option>
         </select>
 <!--        <select name="departmentId" onchange="this.form.submit()">-->
 <!--            <option value="">All departments</option>-->
@@ -42,41 +42,41 @@
 <!--            <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}" th:selected="${c.id == categoryId}"></option>-->
 <!--        </select>-->
 
-        <a th:if="${status != null or priority != null or departmentId != null or categoryId != null or scope != null}"
-           th:href="@{/tickets}" class="btn">Clear filters</a>
+        <a th:if="${statusFilterActive or priority != null or departmentId != null or categoryId != null or scope != 'assigned'}"
+           th:href="@{/tickets}" class="btn">Καθαρισμός φίλτρων</a>
     </form>
 
     <table class="ticket-table">
         <thead>
         <tr>
             <th>ID</th>
-            <th>Description</th>
-            <th>Status</th>
-            <th>Priority</th>
-            <th>Department</th>
-            <th>Assigned To</th>
-            <th>Created</th>
+            <th>Περιγραφή</th>
+            <th>Κατάσταση</th>
+            <th>Προτεραιότητα</th>
+            <th>Τμήμα</th>
+            <th>Ανατέθηκε σε</th>
+            <th>Δημιουργήθηκε</th>
         </tr>
         </thead>
         <tbody>
         <tr th:each="ticket : ${ticketPage.content}" class="ticket-row" th:attr="data-ticket-id=${ticket.id}">
             <td class="ticket-id" th:text="'#' + ${ticket.id}"></td>
             <td class="ticket-desc" th:text="${ticket.description}"></td>
-            <td><span class="badge" th:classappend="'status-' + ${ticket.status}" th:text="${ticket.status}"></span></td>
-            <td><span class="badge" th:classappend="'priority-' + ${ticket.priority}" th:text="${ticket.priority}"></span></td>
+            <td><span class="badge" th:classappend="'status-' + ${ticket.status}" th:text="${ticket.status.displayName}"></span></td>
+            <td><span class="badge" th:classappend="'priority-' + ${ticket.priority}" th:text="${ticket.priority.displayName}"></span></td>
             <td th:text="${ticket.departmentName} ?: '—'"></td>
-            <td th:text="${ticket.assignedUsername} ?: 'Unassigned'"></td>
+            <td th:text="${ticket.assignedUsername} ?: 'Χωρίς ανάθεση'"></td>
             <td th:text="${#temporals.format(ticket.createdAt, 'dd MMM yyyy, HH:mm')}"></td>
         </tr>
         <tr th:if="${ticketPage.content.isEmpty()}">
-            <td colspan="7" class="empty-state">No tickets found.</td>
+            <td colspan="7" class="empty-state">Δεν βρέθηκαν tickets.</td>
         </tr>
         </tbody>
     </table>
 
     <div class="pagination" th:if="${ticketPage.totalPages > 1}">
         <a th:each="i : ${#numbers.sequence(0, ticketPage.totalPages - 1)}"
-           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${status}, priority=${priority}, departmentId=${departmentId}, categoryId=${categoryId}, scope=${scope})}"
+           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${statusParam}, priority=${priority}, departmentId=${departmentId}, categoryId=${categoryId}, scope=${scopeParam})}"
            th:text="${i + 1}"
            th:classappend="${i == ticketPage.number} ? ' active'"
            class="page-link"></a>
@@ -91,39 +91,65 @@
                 <span id="modal-status-badge" class="badge"></span>
                 <span id="modal-priority-badge" class="badge"></span>
             </div>
-            <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('ticket-modal').close()">&times;</button>
+            <button type="button" class="modal-close" aria-label="Κλείσιμο" onclick="document.getElementById('ticket-modal').close()">&times;</button>
         </div>
         <p id="modal-meta" class="modal-meta"></p>
     </div>
     <div id="modal-body" class="modal-body ticket-form">
-        <p>Loading…</p>
+        <p>Φόρτωση…</p>
     </div>
     <div id="modal-footer" class="modal-footer" style="display:none;"></div>
+</dialog>
+
+<dialog id="action-modal" class="modal-dialog modal-dialog-sm">
+    <div class="modal-header">
+        <div class="modal-header-top">
+            <h2 id="action-modal-title">Ενέργεια</h2>
+            <button type="button" class="modal-close" aria-label="Κλείσιμο" id="action-modal-close">&times;</button>
+        </div>
+    </div>
+    <form id="action-modal-form" method="post">
+        <div class="modal-body ticket-form">
+            <input type="hidden" name="_csrf" id="action-modal-csrf">
+            <div class="form-group" id="action-modal-subcategory-group" style="display:none;">
+                <label for="action-modal-subcategory">Υποκατηγορία</label>
+                <select id="action-modal-subcategory" name="subcategoryId"></select>
+            </div>
+            <div class="form-group">
+                <label for="action-modal-comment" id="action-modal-comment-label">Σχόλιο</label>
+                <textarea id="action-modal-comment" name="commentText" required="required"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn" id="action-modal-cancel">Άκυρο</button>
+            <button type="submit" class="btn btn-primary" id="action-modal-submit">Επιβεβαίωση</button>
+        </div>
+    </form>
 </dialog>
 
 <dialog id="create-ticket-modal" class="modal-dialog" th:attr="data-has-errors=${#fields.hasErrors('ticketCreateRequest.*')}">
     <div class="modal-header">
         <div class="modal-header-top">
-            <h2>New Ticket</h2>
-            <button type="button" class="modal-close" aria-label="Close" onclick="document.getElementById('create-ticket-modal').close()">&times;</button>
+            <h2>Νέο Ticket</h2>
+            <button type="button" class="modal-close" aria-label="Κλείσιμο" onclick="document.getElementById('create-ticket-modal').close()">&times;</button>
         </div>
     </div>
     <form th:object="${ticketCreateRequest}" th:action="@{/tickets}" method="post" class="ticket-form">
         <div class="modal-body">
             <div class="form-group">
-                <label for="ct-description">Summary</label>
-                <input type="text" id="ct-description" th:field="*{description}" placeholder="Short summary of the issue" required="required">
+                <label for="ct-description">Περίληψη</label>
+                <input type="text" id="ct-description" th:field="*{description}" placeholder="Σύντομη περιγραφή του προβλήματος">
                 <span class="field-error" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></span>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="ct-caller-name">Caller name</label>
-                    <input type="text" id="ct-caller-name" th:field="*{callerName}" required="required">
+                    <label for="ct-caller-name">Όνομα καλούντος</label>
+                    <input type="text" id="ct-caller-name" th:field="*{callerName}">
                     <span class="field-error" th:if="${#fields.hasErrors('callerName')}" th:errors="*{callerName}"></span>
                 </div>
                 <div class="form-group">
-                    <label for="ct-phone">Phone number</label>
+                    <label for="ct-phone">Αριθμός τηλεφώνου</label>
                     <input type="text" id="ct-phone" th:field="*{phoneNumber}" required="required">
                     <span class="field-error" th:if="${#fields.hasErrors('phoneNumber')}" th:errors="*{phoneNumber}"></span>
                 </div>
@@ -131,34 +157,38 @@
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="ct-department">Department</label>
-                    <select id="ct-department" th:field="*{departmentId}">
-                        <option value="">Select department</option>
-                        <option th:each="d : ${departments}" th:value="${d.id}" th:text="${d.name}"></option>
-                    </select>
+                    <label for="ct-department-input">Τμήμα</label>
+                    <div class="combobox" id="ct-department-combobox">
+                        <input type="text" id="ct-department-input" autocomplete="off" placeholder="Πληκτρολογήστε για αναζήτηση τμήματος…">
+                        <select id="ct-department" th:field="*{departmentId}" hidden="hidden">
+                            <option value="">Επιλέξτε τμήμα</option>
+                            <option th:each="d : ${departments}" th:value="${d.id}" th:text="${d.name}"></option>
+                        </select>
+                        <ul class="combobox-options" id="ct-department-options" hidden="hidden"></ul>
+                    </div>
                     <span class="field-error" th:if="${#fields.hasErrors('departmentId')}" th:errors="*{departmentId}"></span>
                 </div>
 
                 <div class="form-group">
-                    <label for="ct-ip">IP address</label>
-                    <input type="text" id="ct-ip" th:field="*{ipAddress}" placeholder="Optional">
+                    <label for="ct-ip">Διεύθυνση IP</label>
+                    <input type="text" id="ct-ip" th:field="*{ipAddress}" placeholder="Προαιρετικό">
                     <span class="field-error" th:if="${#fields.hasErrors('ipAddress')}" th:errors="*{ipAddress}"></span>
                 </div>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="ct-category">Category</label>
+                    <label for="ct-category">Κατηγορία Βλάβης</label>
                     <select id="ct-category" th:field="*{categoryId}">
-                        <option value="">Select category</option>
+                        <option value="">Επιλέξτε κατηγορία βλάβης</option>
                         <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}"></option>
                     </select>
                     <span class="field-error" th:if="${#fields.hasErrors('categoryId')}" th:errors="*{categoryId}"></span>
                 </div>
                 <div class="form-group">
-                    <label for="ct-subcategory">Subcategory</label>
+                    <label for="ct-subcategory">Υποκατηγορία</label>
                     <select id="ct-subcategory" th:field="*{subcategoryId}" th:attr="data-initial-value=${ticketCreateRequest.subcategoryId}" disabled="disabled">
-                        <option value="">Select a category first</option>
+                        <option value="">Επιλέξτε πρώτα κατηγορία βλάβης</option>
                     </select>
                     <span class="field-error" th:if="${#fields.hasErrors('subcategoryId')}" th:errors="*{subcategoryId}"></span>
                 </div>
@@ -166,29 +196,29 @@
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="ct-assignee">Assign to</label>
+                    <label for="ct-assignee">Ανάθεση σε</label>
                     <select id="ct-assignee" th:field="*{assignedUserId}">
                         <option th:each="u : ${users}" th:value="${u.id}" th:text="${u.username}"></option>
                     </select>
                     <span class="field-error" th:if="${#fields.hasErrors('assignedUserId')}" th:errors="*{assignedUserId}"></span>
                 </div>
                 <div class="form-group">
-                    <label for="ct-priority">Priority</label>
+                    <label for="ct-priority">Προτεραιότητα</label>
                     <select id="ct-priority" th:field="*{priority}">
-                        <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}"></option>
+                        <option th:each="p : ${priorities}" th:value="${p}" th:text="${p.displayName}"></option>
                     </select>
                     <span class="field-error" th:if="${#fields.hasErrors('priority')}" th:errors="*{priority}"></span>
                 </div>
             </div>
 
             <div class="form-group">
-                <label for="ct-comment">Details</label>
-                <textarea id="ct-comment" th:field="*{commentText}" placeholder="Describe the issue in detail…" required="required"></textarea>
+                <label for="ct-comment">Λεπτομέρειες</label>
+                <textarea id="ct-comment" th:field="*{commentText}" placeholder="Περιγράψτε το πρόβλημα αναλυτικά…" required="required"></textarea>
                 <span class="field-error" th:if="${#fields.hasErrors('commentText')}" th:errors="*{commentText}"></span>
             </div>
         </div>
         <div class="modal-footer">
-            <button type="submit" name="action" value="open" class="btn btn-primary">Open Ticket</button>
+            <button type="submit" name="action" value="open" class="btn btn-primary">Άνοιγμα Ticket</button>
         </div>
     </form>
 </dialog>

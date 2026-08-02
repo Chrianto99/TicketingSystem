@@ -7,6 +7,6 @@ import lombok.Setter;
 @Getter @Setter
 public class CommentUpdateRequest {
 
-    @NotBlank
+    @NotBlank(message = "Το κείμενο είναι υποχρεωτικό")
     private String text;
 }

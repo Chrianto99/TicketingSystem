@@ -2,6 +2,7 @@ package com.Chrianto.TicketingSystem.controller.view;
 
 import com.Chrianto.TicketingSystem.dto.request.ChangePasswordRequest;
 import com.Chrianto.TicketingSystem.dto.request.UserProfileUpdateRequest;
+import com.Chrianto.TicketingSystem.dto.response.UserResponse;
 import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.service.UserService;
 import jakarta.validation.Valid;
@@ -48,8 +49,9 @@ public class ProfileViewController {
                                   @AuthenticationPrincipal User currentUser,
                                   Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("user", userService.getUserById(currentUser.getId()));
-            model.addAttribute("userProfileUpdateRequest", profileRequestFor(currentUser));
+            UserResponse freshUser = userService.getUserById(currentUser.getId());
+            model.addAttribute("user", freshUser);
+            model.addAttribute("userProfileUpdateRequest", profileRequestFor(freshUser));
             return "users/profile";
         }
         userService.changePassword(currentUser.getId(), req);
@@ -57,18 +59,20 @@ public class ProfileViewController {
     }
 
     private void populateProfileData(Model model, User currentUser) {
-        model.addAttribute("user", userService.getUserById(currentUser.getId()));
+        UserResponse freshUser = userService.getUserById(currentUser.getId());
+        model.addAttribute("user", freshUser);
         if (!model.containsAttribute("userProfileUpdateRequest")) {
-            model.addAttribute("userProfileUpdateRequest", profileRequestFor(currentUser));
+            model.addAttribute("userProfileUpdateRequest", profileRequestFor(freshUser));
         }
         if (!model.containsAttribute("changePasswordRequest")) {
             model.addAttribute("changePasswordRequest", new ChangePasswordRequest());
         }
     }
 
-    private UserProfileUpdateRequest profileRequestFor(User currentUser) {
+    private UserProfileUpdateRequest profileRequestFor(UserResponse user) {
         UserProfileUpdateRequest req = new UserProfileUpdateRequest();
-        req.setEmail(currentUser.getEmail());
+        req.setEmail(user.getEmail());
+        req.setPhoneNumber(user.getPhoneNumber());
         return req;
     }
 }

@@ -24,6 +24,7 @@ public class DepartmentService {
 
         department.setName(req.getName());
         department.setActive(true);
+        department.setCode(req.getCode());
 
         department = departmentRepository.save(department);
 
@@ -31,11 +32,12 @@ public class DepartmentService {
     }
 
     @Transactional
-    public DepartmentResponse updateDepartmentName(Long departmentId, String name) {
+    public DepartmentResponse updateDepartment(Long departmentId, String name, String code) {
         Department department = departmentRepository.findById(departmentId)
-                .orElseThrow(() -> new EntityNotFoundException("Department not found with id: " + departmentId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε τμήμα με id: " + departmentId));
 
         department.setName(name);
+        department.setCode(code);
         department = departmentRepository.save(department);
 
         return toResponse(department);
@@ -44,7 +46,7 @@ public class DepartmentService {
     @Transactional
     public void toggleDepartmentActiveState(Long departmentId) {
         Department department = departmentRepository.findById(departmentId)
-                .orElseThrow(() -> new EntityNotFoundException("Department not found with id: " + departmentId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε τμήμα με id: " + departmentId));
 
         department.setActive(!department.isActive());
         departmentRepository.save(department);
@@ -53,10 +55,10 @@ public class DepartmentService {
     @Transactional
     public void deleteDepartment(Long departmentId) {
         Department department = departmentRepository.findById(departmentId)
-                .orElseThrow(() -> new EntityNotFoundException("Department not found with id: " + departmentId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε τμήμα με id: " + departmentId));
 
         if (department.isActive()) {
-            throw new IllegalStateException("Only deactivated departments can be deleted");
+            throw new IllegalStateException("Μόνο απενεργοποιημένα τμήματα μπορούν να διαγραφούν");
         }
 
         ticketRepository.nullifyDepartment(departmentId);
@@ -64,7 +66,7 @@ public class DepartmentService {
     }
 
     public List<DepartmentResponse> getAllDepartments() {
-        return departmentRepository.findAll()
+        return departmentRepository.findAllByOrderByNameAsc()
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -75,6 +77,7 @@ public class DepartmentService {
                 .id(d.getId())
                 .name(d.getName())
                 .active(d.isActive())
+                .code(d.getCode())
                 .build();
     }
 

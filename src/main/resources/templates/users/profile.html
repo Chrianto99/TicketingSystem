@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>My Profile</title>
+    <title>Το προφίλ μου</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body>
@@ -11,60 +11,71 @@
 
 <main class="page page-narrow">
     <div class="page-header">
-        <h1>My Profile</h1>
+        <h1>Το προφίλ μου</h1>
     </div>
 
-    <p th:if="${param.updated != null}" class="success-banner">Profile updated.</p>
-    <p th:if="${param.passwordChanged != null}" class="success-banner">Password changed.</p>
+    <p th:if="${param.updated != null}" class="success-banner">Το προφίλ ενημερώθηκε.</p>
+    <p th:if="${param.passwordChanged != null}" class="success-banner">Ο κωδικός πρόσβασης άλλαξε.</p>
 
-    <h3>Account information</h3>
-    <form th:object="${userProfileUpdateRequest}" th:action="@{/profile}" method="post" class="ticket-form">
+    <div class="profile-section-heading">
+        <h3>Στοιχεία λογαριασμού</h3>
+        <button type="button" id="profile-edit-btn" class="icon-btn" title="Επεξεργασία" th:hidden="${#fields.hasErrors('userProfileUpdateRequest.*')}">&#9998;</button>
+    </div>
+    <form id="profile-form" th:object="${userProfileUpdateRequest}" th:action="@{/profile}" method="post" class="ticket-form">
         <div class="form-group">
-            <label for="p-username">Username</label>
+            <label for="p-username">Όνομα χρήστη</label>
             <input type="text" id="p-username" th:value="${user.username}" disabled="disabled">
         </div>
 
         <div class="form-group">
             <label for="p-email">Email</label>
-            <input type="email" id="p-email" th:field="*{email}" required="required">
+            <input type="email" id="p-email" th:field="*{email}" required="required" th:disabled="${!#fields.hasErrors('*')}">
             <span class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></span>
         </div>
 
         <div class="form-group">
-            <label for="p-role">Role</label>
-            <input type="text" id="p-role" th:value="${user.role}" disabled="disabled">
+            <label for="p-phone">Αριθμός τηλεφώνου</label>
+            <input type="text" id="p-phone" th:field="*{phoneNumber}" required="required" th:disabled="${!#fields.hasErrors('*')}">
+            <span class="field-error" th:if="${#fields.hasErrors('phoneNumber')}" th:errors="*{phoneNumber}"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="p-role">Ρόλος</label>
+            <input type="text" id="p-role" th:value="${user.role.displayName}" disabled="disabled">
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Save changes</button>
+            <button type="submit" id="profile-save-btn" class="btn btn-primary" th:hidden="${!#fields.hasErrors('*')}">Αποθήκευση αλλαγών</button>
+            <button type="button" id="profile-cancel-btn" class="btn" th:hidden="${!#fields.hasErrors('*')}">Άκυρο</button>
         </div>
     </form>
 
-    <h3>Change password</h3>
+    <h3>Αλλαγή κωδικού πρόσβασης</h3>
     <form th:object="${changePasswordRequest}" th:action="@{/profile/password}" method="post" class="ticket-form">
         <div class="form-group">
-            <label for="p-current-password">Current password</label>
+            <label for="p-current-password">Τρέχων κωδικός πρόσβασης</label>
             <input type="password" id="p-current-password" th:field="*{currentPassword}" required="required">
             <span class="field-error" th:if="${#fields.hasErrors('currentPassword')}" th:errors="*{currentPassword}"></span>
         </div>
 
         <div class="form-group">
-            <label for="p-new-password">New password</label>
+            <label for="p-new-password">Νέος κωδικός πρόσβασης</label>
             <input type="password" id="p-new-password" th:field="*{newPassword}" required="required" minlength="8">
             <span class="field-error" th:if="${#fields.hasErrors('newPassword')}" th:errors="*{newPassword}"></span>
         </div>
 
         <div class="form-group">
-            <label for="p-confirm-password">Confirm new password</label>
+            <label for="p-confirm-password">Επιβεβαίωση νέου κωδικού</label>
             <input type="password" id="p-confirm-password" th:field="*{confirmPassword}" required="required" minlength="8">
             <span class="field-error" th:if="${#fields.hasErrors('confirmPassword')}" th:errors="*{confirmPassword}"></span>
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Change password</button>
+            <button type="submit" class="btn btn-primary">Αλλαγή κωδικού</button>
         </div>
     </form>
 </main>
 
+<script th:src="@{/js/profile.js}"></script>
 </body>
 </html>

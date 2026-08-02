@@ -81,6 +81,33 @@ class TicketViewControllerTest {
     }
 
     @Test
+    void listTickets_withAllStatusAndAllScope_exposesRoundTrippableParamsForPagination() throws Exception {
+        // Regression test: pagination links are built from statusParam/scopeParam, not the
+        // raw status/scope model attributes — those are null here (meaning "no filter" for
+        // the JPA query), and a null-valued Thymeleaf @{} param is dropped from the URL
+        // entirely, which used to silently reset the page back to the "My Tickets" / OPEN
+        // default the moment a user on "All Tickets" clicked to another page.
+        mockMvc.perform(get("/tickets")
+                        .with(user(currentUser))
+                        .param("status", "ALL")
+                        .param("scope", "all"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("status", (Object) null))
+                .andExpect(model().attribute("statusParam", "ALL"))
+                .andExpect(model().attribute("scope", (Object) null))
+                .andExpect(model().attribute("scopeParam", "all"));
+    }
+
+    @Test
+    void listTickets_withDefaultParams_exposesResolvedDefaultsAsParams() throws Exception {
+        mockMvc.perform(get("/tickets")
+                        .with(user(currentUser)))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("statusParam", "OPEN"))
+                .andExpect(model().attribute("scopeParam", "assigned"));
+    }
+
+    @Test
     void createTicket_withValidData_createsTicketAndRedirectsToDetail() throws Exception {
         TicketResponse response = TicketResponse.builder().id(42L).build();
         when(ticketService.createTicket(any(TicketCreateRequest.class), eq(currentUser))).thenReturn(response);

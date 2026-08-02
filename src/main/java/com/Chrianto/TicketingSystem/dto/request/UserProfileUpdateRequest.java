@@ -7,6 +7,9 @@ import lombok.Setter;
 
 @Getter @Setter
 public class UserProfileUpdateRequest {
-    @NotBlank @Email
+    @NotBlank(message = "Το email είναι υποχρεωτικό") @Email(message = "Το email πρέπει να είναι έγκυρο")
     private String email;
+
+    @NotBlank(message = "Ο αριθμός τηλεφώνου είναι υποχρεωτικός")
+    private String phoneNumber;
 }

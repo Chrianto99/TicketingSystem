@@ -9,15 +9,14 @@ import lombok.*;
 @Getter
 @Setter
 public class UserRegisterRequest {
-    @NotBlank
+    @NotBlank(message = "Το όνομα χρήστη είναι υποχρεωτικό")
     private String username;
 
-    @NotBlank @Email
+    @Email(message = "Το email πρέπει να είναι έγκυρο")
     private String email;
 
-    @NotBlank
     private String phoneNumber;
 
-    @NotNull
+    @NotNull(message = "Ο ρόλος είναι υποχρεωτικός")
     private UserRole role;
 }

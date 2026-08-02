@@ -6,36 +6,33 @@ import lombok.*;
 
 @Getter @Setter
 public class TicketCreateRequest {
-    @NotNull
+    @NotNull(message = "Ο ανάδοχος χρήστης είναι υποχρεωτικός")
     private Long assignedUserId;
 
-    @NotBlank
     private String callerName;
 
-    @NotBlank
+    @NotBlank(message = "Ο αριθμός τηλεφώνου είναι υποχρεωτικός")
     private String phoneNumber;
 
-    @NotNull
     private Long departmentId;
 
-    @NotNull
+    @NotNull(message = "Η κατηγορία βλάβης είναι υποχρεωτική")
     private Long categoryId;
 
     private Long subcategoryId;
 
     @Pattern(
             regexp = "^((25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d?\\d)$",
-            message = "IP address must follow IPv4 pattern"
+            message = "Η διεύθυνση IP πρέπει να ακολουθεί τη μορφή IPv4"
     )
     private String ipAddress;
 
-    @NotBlank
     private String description;
 
-    @NotNull
+    @NotNull(message = "Η προτεραιότητα είναι υποχρεωτική")
     private TicketPriority priority;
 
-    @NotBlank
+    @NotBlank(message = "Το σχόλιο είναι υποχρεωτικό")
     private String commentText;
 
 

@@ -17,8 +17,6 @@ public class Department {
     @Column(nullable = false)
     private boolean isActive;
 
-//    @Column(name = "default_number")
-//    private String defaultNumber; // optional, nullable by default
-//
-//    private boolean active = true;
+    @Column(name = "g_code")
+    private String code;
 }

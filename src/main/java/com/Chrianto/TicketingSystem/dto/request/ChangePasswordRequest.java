@@ -7,13 +7,13 @@ import lombok.Setter;
 
 @Getter @Setter
 public class ChangePasswordRequest {
-    @NotBlank
+    @NotBlank(message = "Ο τρέχων κωδικός πρόσβασης είναι υποχρεωτικός")
     private String currentPassword;
 
-    @NotBlank
-    @Size(min = 8, message = "New password must be at least 8 characters")
+    @NotBlank(message = "Ο νέος κωδικός πρόσβασης είναι υποχρεωτικός")
+    @Size(min = 8, message = "Ο νέος κωδικός πρόσβασης πρέπει να έχει τουλάχιστον 8 χαρακτήρες")
     private String newPassword;
 
-    @NotBlank
+    @NotBlank(message = "Η επιβεβαίωση κωδικού πρόσβασης είναι υποχρεωτική")
     private String confirmPassword;
 }

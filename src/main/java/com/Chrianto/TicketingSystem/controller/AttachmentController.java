@@ -2,6 +2,7 @@ package com.Chrianto.TicketingSystem.controller;
 
 import com.Chrianto.TicketingSystem.dto.response.AttachmentDownload;
 import com.Chrianto.TicketingSystem.dto.response.AttachmentResponse;
+import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.service.AttachmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,8 +26,16 @@ public class AttachmentController {
 
     @PostMapping("/comments/{commentId}/attachments")
     public ResponseEntity<AttachmentResponse> uploadAttachment(@PathVariable Long commentId,
-                                                                 @RequestParam("file") MultipartFile file) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(attachmentService.uploadAttachment(commentId, file));
+                                                                 @RequestParam("file") MultipartFile file,
+                                                                 @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(attachmentService.uploadAttachment(commentId, file, currentUser));
+    }
+
+    @DeleteMapping("/attachments/{attachmentId}")
+    public ResponseEntity<Void> deleteAttachment(@PathVariable Long attachmentId,
+                                                  @AuthenticationPrincipal User currentUser) {
+        attachmentService.deleteAttachment(attachmentId, currentUser);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/attachments/{attachmentId}")

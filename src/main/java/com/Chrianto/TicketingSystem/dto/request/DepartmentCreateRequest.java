@@ -5,8 +5,8 @@ import lombok.*;
 
 @Getter @Setter
 public class DepartmentCreateRequest {
-    @NotBlank
+    @NotBlank(message = "Το όνομα είναι υποχρεωτικό")
     private String name;
 
-//    private String defaultNumber; // optional
+    private String code;
 }

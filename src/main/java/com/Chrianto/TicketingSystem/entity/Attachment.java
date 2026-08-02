@@ -16,6 +16,10 @@ public class Attachment {
     @JoinColumn(name = "comment_id", nullable = false)
     private Comment comment;
 
+    @ManyToOne
+    @JoinColumn(name = "uploaded_by_id")
+    private User uploadedBy;
+
     @Column(nullable = false)
     private String fileName;
 

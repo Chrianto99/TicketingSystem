@@ -2,19 +2,19 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 <nav class="navbar" th:fragment="nav">
-    <div class="navbar-brand"><a th:href="@{/tickets}">Ticketing System</a></div>
+    <div class="navbar-brand"><a th:href="@{/tickets}"><img th:src="@{/img/gepLogo.png}" alt="Ticketing System" class="navbar-logo"></a></div>
     <div class="navbar-links">
         <a th:href="@{/tickets}">Tickets</a>
-        <a th:href="@{/departments}">Departments</a>
-        <a th:href="@{/categories}">Categories</a>
-        <a th:href="@{/users}" sec:authorize="hasRole('ADMIN')">Users</a>
+        <a th:href="@{/departments}">Τμήματα</a>
+        <a th:href="@{/categories}">Κατηγορίες Βλάβης</a>
+        <a th:href="@{/users}">Χρήστες</a>
     </div>
     <div class="navbar-user">
-        <a th:href="@{/profile}" class="navbar-avatar" title="My Profile"
+        <a th:href="@{/profile}" class="navbar-avatar" title="Το προφίλ μου"
            th:text="${#strings.toUpperCase(#strings.substring(#authentication.name, 0, 1))}"></a>
         <span sec:authentication="name">username</span>
         <form th:action="@{/logout}" method="post">
-            <button type="submit" class="btn-link">Logout</button>
+            <button type="submit" class="btn-link">Αποσύνδεση</button>
         </form>
     </div>
 </nav>
@@ -25,31 +25,31 @@
     <dialog id="confirm-modal" class="modal-dialog modal-dialog-sm">
         <div class="modal-header">
             <div class="modal-header-top">
-                <h2>Confirm</h2>
-                <button type="button" class="modal-close" aria-label="Close" id="confirm-modal-close">&times;</button>
+                <h2>Επιβεβαίωση</h2>
+                <button type="button" class="modal-close" aria-label="Κλείσιμο" id="confirm-modal-close">&times;</button>
             </div>
         </div>
         <div class="modal-body">
             <p id="confirm-modal-message"></p>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn" id="confirm-modal-cancel">Cancel</button>
-            <button type="button" class="btn btn-primary" id="confirm-modal-ok">Confirm</button>
+            <button type="button" class="btn" id="confirm-modal-cancel">Άκυρο</button>
+            <button type="button" class="btn btn-primary" id="confirm-modal-ok">Επιβεβαίωση</button>
         </div>
     </dialog>
 
     <dialog id="error-modal" class="modal-dialog modal-dialog-sm">
         <div class="modal-header">
             <div class="modal-header-top">
-                <h2>Error</h2>
-                <button type="button" class="modal-close" aria-label="Close" id="error-modal-close">&times;</button>
+                <h2>Σφάλμα</h2>
+                <button type="button" class="modal-close" aria-label="Κλείσιμο" id="error-modal-close">&times;</button>
             </div>
         </div>
         <div class="modal-body">
             <p id="error-modal-message" class="modal-error"></p>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-primary" id="error-modal-ok">OK</button>
+            <button type="button" class="btn btn-primary" id="error-modal-ok">Εντάξει</button>
         </div>
     </dialog>
 

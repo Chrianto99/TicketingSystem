@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +37,7 @@ public class CategoryService {
     @Transactional
     public CategoryResponse updateCategoryName(Long categoryId, String name) {
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new EntityNotFoundException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε κατηγορία βλάβης με id: " + categoryId));
 
         category.setName(name);
         category = categoryRepository.save(category);
@@ -47,7 +49,7 @@ public class CategoryService {
     public void toggleCategoryActiveState(Long categoryId) {
 
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new EntityNotFoundException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε κατηγορία βλάβης με id: " + categoryId));
 
         boolean newState = !category.isActive();
         category.setActive(newState);
@@ -67,10 +69,10 @@ public class CategoryService {
     @Transactional
     public void deleteCategory(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new EntityNotFoundException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε κατηγορία βλάβης με id: " + categoryId));
 
         if (category.isActive()) {
-            throw new IllegalStateException("Only deactivated categories can be deleted");
+            throw new IllegalStateException("Μόνο απενεργοποιημένες κατηγορίες βλάβης μπορούν να διαγραφούν");
         }
 
         // subcategories always belong to exactly one category, so they can't be
@@ -86,17 +88,24 @@ public class CategoryService {
     }
 
     public List<CategoryResponse> getAllCategories(){
-        return categoryRepository.findAll().
-                stream().
-                map(this::toResponse).
-                toList();
+        Map<Long, Long> ticketCounts = ticketRepository.countTicketsGroupedByCategory().stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        return categoryRepository.findAll().stream()
+                .map(c -> toResponse(c, ticketCounts.getOrDefault(c.getId(), 0L)))
+                .toList();
     }
 
     private CategoryResponse toResponse(Category category) {
+        return toResponse(category, ticketRepository.countByCategoryId(category.getId()));
+    }
+
+    private CategoryResponse toResponse(Category category, long ticketCount) {
         return CategoryResponse.builder()
                 .id(category.getId())
                 .name(category.getName())
                 .active(category.isActive())
+                .ticketCount(ticketCount)
                 .build();
     }
 

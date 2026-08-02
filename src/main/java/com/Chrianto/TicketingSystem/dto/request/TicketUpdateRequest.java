@@ -1,5 +1,7 @@
 package com.Chrianto.TicketingSystem.dto.request;
 
+import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.*;
 
@@ -18,9 +20,12 @@ public class TicketUpdateRequest {
 
     private String description;
 
+    @NotNull(message = "Η προτεραιότητα είναι υποχρεωτική")
+    private TicketPriority priority;
+
     @Pattern(
             regexp = "^((25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d?\\d)$",
-            message = "IP address must follow IPv4 pattern"
+            message = "Η διεύθυνση IP πρέπει να ακολουθεί τη μορφή IPv4"
     )
     private String ipAddress;
 

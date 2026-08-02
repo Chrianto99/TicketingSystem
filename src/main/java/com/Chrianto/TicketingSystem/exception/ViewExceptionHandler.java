@@ -19,7 +19,7 @@ public class ViewExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public String handleDataIntegrityViolation(HttpServletRequest request, RedirectAttributes redirectAttributes) {
-        redirectAttributes.addFlashAttribute("errorMessage", "This entry conflicts with an existing record");
+        redirectAttributes.addFlashAttribute("errorMessage", "Αυτή η καταχώρηση έρχεται σε σύγκρουση με μια υπάρχουσα εγγραφή");
         return "redirect:" + refererOrFallback(request);
     }
 

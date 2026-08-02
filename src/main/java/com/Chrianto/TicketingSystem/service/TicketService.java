@@ -38,17 +38,19 @@ public class TicketService {
 
     public TicketResponse createTicket(TicketCreateRequest req, User creator) {
         User assignee = userRepository.findById(req.getAssignedUserId())
-                .orElseThrow(() -> new EntityNotFoundException("Assignee not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Ο ανάδοχος χρήστης δεν βρέθηκε"));
 
-        Department department = departmentRepository.findById(req.getDepartmentId())
-                .orElseThrow(() -> new EntityNotFoundException("Department not found"));
+        Department department = req.getDepartmentId() != null
+                ? departmentRepository.findById(req.getDepartmentId())
+                        .orElseThrow(() -> new EntityNotFoundException("Το τμήμα δεν βρέθηκε"))
+                : null;
 
         Category category = categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new EntityNotFoundException("Category not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Η κατηγορία βλάβης δεν βρέθηκε"));
 
         Subcategory subcategory = req.getSubcategoryId() != null
                 ? subcategoryRepository.findById(req.getSubcategoryId())
-                        .orElseThrow(() -> new EntityNotFoundException("Subcategory not found"))
+                        .orElseThrow(() -> new EntityNotFoundException("Η υποκατηγορία δεν βρέθηκε"))
                 : null;
         validateSubcategoryBelongsToCategory(category, subcategory);
 
@@ -82,22 +84,22 @@ public class TicketService {
     public TicketResponse editTicket(Long ticketId, TicketUpdateRequest req, User performedBy){
 
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
 
         Department department = departmentRepository.findById(req.getDepartmentId())
-                .orElseThrow(() -> new EntityNotFoundException("Department not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Το τμήμα δεν βρέθηκε"));
 
         Category category = categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new EntityNotFoundException("Category not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Η κατηγορία βλάβης δεν βρέθηκε"));
 
         Subcategory subcategory = req.getSubcategoryId() != null
                 ? subcategoryRepository.findById(req.getSubcategoryId())
-                        .orElseThrow(() -> new EntityNotFoundException("Subcategory not found"))
+                        .orElseThrow(() -> new EntityNotFoundException("Η υποκατηγορία δεν βρέθηκε"))
                 : null;
         validateSubcategoryBelongsToCategory(category, subcategory);
 
         if (!ticket.getCreator().getId().equals(performedBy.getId())) {
-            throw new IllegalStateException("Only the creator user can edit this ticket info");
+            throw new IllegalStateException("Μόνο ο δημιουργός του ticket μπορεί να επεξεργαστεί αυτές τις πληροφορίες");
         }
 
         ticket.setLastModifiedBy(performedBy);
@@ -108,6 +110,7 @@ public class TicketService {
         ticket.setPhoneNumber(req.getPhoneNumber());
         ticket.setIpAddress(req.getIpAddress());
         ticket.setDescription(req.getDescription());
+        ticket.setPriority(req.getPriority());
         ticket.setUpdatedAt(LocalDateTime.now());
 
         ticket = ticketRepository.save(ticket);
@@ -117,10 +120,10 @@ public class TicketService {
 
     public void editComment(Long commentId, CommentUpdateRequest req, User currentUser) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new EntityNotFoundException("Comment not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Το σχόλιο δεν βρέθηκε"));
 
         if (comment.getUser() == null || !comment.getUser().getId().equals(currentUser.getId())) {
-            throw new IllegalStateException("Only the comment's author can edit it");
+            throw new IllegalStateException("Μόνο ο συντάκτης του σχολίου μπορεί να το επεξεργαστεί");
         }
 
         comment.setText(req.getText());
@@ -129,11 +132,22 @@ public class TicketService {
 
     public TicketResponse resolveTicket(Long ticketId, TicketChangeStatusRequest req, User performedBy) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
 
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
-            throw new IllegalStateException("Ticket is already " + ticket.getStatus());
+            throw new IllegalStateException("Το ticket είναι ήδη " + ticket.getStatus().getDisplayName());
+        }
+
+        if (req.getSubcategoryId() != null) {
+            Subcategory subcategory = subcategoryRepository.findById(req.getSubcategoryId())
+                    .orElseThrow(() -> new EntityNotFoundException("Η υποκατηγορία δεν βρέθηκε"));
+            validateSubcategoryBelongsToCategory(ticket.getCategory(), subcategory);
+            ticket.setSubcategory(subcategory);
+        }
+
+        if (ticket.getSubcategory() == null) {
+            throw new IllegalArgumentException("Απαιτείται υποκατηγορία για την επίλυση ενός ticket");
         }
 
         Comment comment = postComment(ticket, performedBy, req.getCommentText());
@@ -152,11 +166,11 @@ public class TicketService {
 
     public TicketResponse cancelTicket(Long ticketId, TicketChangeStatusRequest req, User performedBy) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
 
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
-            throw new IllegalStateException("Ticket is already " + ticket.getStatus());
+            throw new IllegalStateException("Το ticket είναι ήδη " + ticket.getStatus().getDisplayName());
         }
 
         Comment comment = postComment(ticket, performedBy, req.getCommentText());
@@ -175,11 +189,11 @@ public class TicketService {
 
     public TicketResponse commentOnTicket(Long ticketId, TicketChangeStatusRequest req, User performedBy) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
 
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
-            throw new IllegalStateException("Ticket is already " + ticket.getStatus());
+            throw new IllegalStateException("Το ticket είναι ήδη " + ticket.getStatus().getDisplayName());
         }
 
         Comment comment = postComment(ticket, performedBy, req.getCommentText());
@@ -191,14 +205,14 @@ public class TicketService {
 
     public TicketResponse reassignTicket(Long ticketId, TicketReassignRequest req, User performedBy) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
 
         User assignTo =  userRepository.findById(req.getAssignedTo())
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + req.getAssignedTo()));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + req.getAssignedTo()));
 
 
         if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CANCELLED) {
-            throw new IllegalStateException("Ticket is already " + ticket.getStatus());
+            throw new IllegalStateException("Το ticket είναι ήδη " + ticket.getStatus().getDisplayName());
         }
 
         Comment comment = postComment(ticket, performedBy, req.getCommentText());
@@ -216,11 +230,11 @@ public class TicketService {
 
     public TicketResponse reopenTicket(Long ticketId, TicketChangeStatusRequest req, User performedBy) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
 
 
         if (ticket.getStatus() == TicketStatus.OPEN) {
-            throw new IllegalStateException("Ticket is already " + ticket.getStatus());
+            throw new IllegalStateException("Το ticket είναι ήδη " + ticket.getStatus().getDisplayName());
         }
 
         Comment comment = postComment(ticket, performedBy, req.getCommentText());
@@ -240,13 +254,13 @@ public class TicketService {
 
     private void validateSubcategoryBelongsToCategory(Category category, Subcategory subcategory) {
         if (subcategory != null && !subcategory.getCategory().getId().equals(category.getId())) {
-            throw new IllegalArgumentException("Subcategory does not belong to the selected category");
+            throw new IllegalArgumentException("Η υποκατηγορία δεν ανήκει στην επιλεγμένη κατηγορία βλάβης");
         }
     }
 
     public Comment postComment(Ticket ticket, User performedBy, String commentText){
         if (commentText == null || commentText.isEmpty()) {
-            throw new IllegalArgumentException("User must type a comment");
+            throw new IllegalArgumentException("Ο χρήστης πρέπει να πληκτρολογήσει ένα σχόλιο");
         }
         Comment comment = new Comment();
         comment.setText(commentText);
@@ -261,7 +275,7 @@ public class TicketService {
 
     public TicketResponse getTicketById(Long ticketId) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
         return toResponse(ticket);
     }
 
@@ -274,8 +288,11 @@ public class TicketService {
 
     @Transactional
     public void deleteTicket(Long ticketId) {
-        if (!ticketRepository.existsById(ticketId)) {
-            throw new EntityNotFoundException("Ticket not found with id: " + ticketId);
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
+
+        if (ticket.getStatus() != TicketStatus.CANCELLED) {
+            throw new IllegalStateException("Μόνο ακυρωμένα tickets μπορούν να διαγραφούν");
         }
 
         attachmentService.deleteAttachmentsForTicket(ticketId);

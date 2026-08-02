@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +25,7 @@ public class SubcategoryService {
 
     public SubcategoryResponse createSubcategory(SubcategoryRequest req){
         Category category = categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new EntityNotFoundException("Category not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Η κατηγορία βλάβης δεν βρέθηκε"));
 
         Subcategory subcategory = new Subcategory();
         subcategory.setName(req.getName());
@@ -38,7 +40,7 @@ public class SubcategoryService {
     @Transactional
     public SubcategoryResponse updateSubcategoryName(Long subcategoryId, String name) {
         Subcategory subcategory = subcategoryRepository.findById(subcategoryId)
-                .orElseThrow(() -> new EntityNotFoundException("Subcategory not found with id: " + subcategoryId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε υποκατηγορία με id: " + subcategoryId));
 
         subcategory.setName(name);
         subcategory = subcategoryRepository.save(subcategory);
@@ -50,11 +52,11 @@ public class SubcategoryService {
     public void toggleSubcategoryActiveState(Long subcategoryId) {
 
         Subcategory subcategory = subcategoryRepository.findById(subcategoryId)
-                .orElseThrow(() -> new EntityNotFoundException("Subcategory not found with id: " + subcategoryId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε υποκατηγορία με id: " + subcategoryId));
 
         boolean newState = !subcategory.isActive();
         if (newState && !subcategory.getCategory().isActive()) {
-            throw new IllegalStateException("Cannot activate a subcategory while its category is inactive");
+            throw new IllegalStateException("Δεν είναι δυνατή η ενεργοποίηση υποκατηγορίας ενώ η κατηγορία βλάβης της είναι ανενεργή");
         }
         subcategory.setActive(newState);
         subcategoryRepository.save(subcategory);
@@ -63,10 +65,10 @@ public class SubcategoryService {
     @Transactional
     public void deleteSubcategory(Long subcategoryId) {
         Subcategory subcategory = subcategoryRepository.findById(subcategoryId)
-                .orElseThrow(() -> new EntityNotFoundException("Subcategory not found with id: " + subcategoryId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε υποκατηγορία με id: " + subcategoryId));
 
         if (subcategory.isActive()) {
-            throw new IllegalStateException("Only deactivated subcategories can be deleted");
+            throw new IllegalStateException("Μόνο απενεργοποιημένες υποκατηγορίες μπορούν να διαγραφούν");
         }
 
         ticketRepository.nullifySubcategory(subcategoryId);
@@ -78,18 +80,26 @@ public class SubcategoryService {
                 ? subcategoryRepository.findByCategoryId(categoryId)
                 : subcategoryRepository.findAll();
 
+        Map<Long, Long> ticketCounts = ticketRepository.countTicketsGroupedBySubcategory().stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
         return subcategories.stream()
-                .map(this::toResponse)
+                .map(s -> toResponse(s, ticketCounts.getOrDefault(s.getId(), 0L)))
                 .toList();
     }
 
     private SubcategoryResponse toResponse(Subcategory subcategory) {
+        return toResponse(subcategory, ticketRepository.countBySubcategoryId(subcategory.getId()));
+    }
+
+    private SubcategoryResponse toResponse(Subcategory subcategory, long ticketCount) {
         return SubcategoryResponse.builder()
                 .id(subcategory.getId())
                 .name(subcategory.getName())
                 .categoryId(subcategory.getCategory().getId())
                 .categoryName(subcategory.getCategory().getName())
                 .active(subcategory.isActive())
+                .ticketCount(ticketCount)
                 .build();
     }
 

@@ -4,6 +4,7 @@ import com.Chrianto.TicketingSystem.dto.response.AttachmentDownload;
 import com.Chrianto.TicketingSystem.dto.response.AttachmentResponse;
 import com.Chrianto.TicketingSystem.entity.Attachment;
 import com.Chrianto.TicketingSystem.entity.Comment;
+import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.exception.EntityNotFoundException;
 import com.Chrianto.TicketingSystem.repository.AttachmentRepository;
 import com.Chrianto.TicketingSystem.repository.CommentRepository;
@@ -48,13 +49,13 @@ public class AttachmentService {
         }
     }
 
-    public AttachmentResponse uploadAttachment(Long commentId, MultipartFile file) {
+    public AttachmentResponse uploadAttachment(Long commentId, MultipartFile file, User currentUser) {
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("File must not be empty");
+            throw new IllegalArgumentException("Το αρχείο δεν πρέπει να είναι κενό");
         }
 
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new EntityNotFoundException("Comment not found with id: " + commentId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε σχόλιο με id: " + commentId));
 
         String originalName = StringUtils.cleanPath(
                 file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()
@@ -73,6 +74,7 @@ public class AttachmentService {
 
         Attachment attachment = new Attachment();
         attachment.setComment(comment);
+        attachment.setUploadedBy(currentUser);
         attachment.setFileName(originalName);
         attachment.setFilePath(relativePath);
         attachment.setContentType(file.getContentType());
@@ -83,18 +85,30 @@ public class AttachmentService {
         return toResponse(attachment);
     }
 
+    public void deleteAttachment(Long attachmentId, User currentUser) {
+        Attachment attachment = attachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε συνημμένο με id: " + attachmentId));
+
+        if (attachment.getUploadedBy() == null || !attachment.getUploadedBy().getId().equals(currentUser.getId())) {
+            throw new IllegalStateException("Μόνο ο χρήστης που επισύναψε αυτό το αρχείο μπορεί να το αφαιρέσει");
+        }
+
+        deleteFileQuietly(attachment);
+        attachmentRepository.delete(attachment);
+    }
+
     public AttachmentDownload downloadAttachment(Long attachmentId) {
         Attachment attachment = attachmentRepository.findById(attachmentId)
-                .orElseThrow(() -> new EntityNotFoundException("Attachment not found with id: " + attachmentId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε συνημμένο με id: " + attachmentId));
 
         Path filePath = storageRoot.resolve(attachment.getFilePath()).normalize();
         if (!filePath.startsWith(storageRoot)) {
-            throw new EntityNotFoundException("Attachment not found with id: " + attachmentId);
+            throw new EntityNotFoundException("Δεν βρέθηκε συνημμένο με id: " + attachmentId);
         }
 
         Resource resource = new FileSystemResource(filePath);
         if (!resource.exists()) {
-            throw new EntityNotFoundException("Attachment file is missing from storage");
+            throw new EntityNotFoundException("Το αρχείο του συνημμένου λείπει από την αποθήκευση");
         }
 
         return AttachmentDownload.builder()
@@ -125,6 +139,7 @@ public class AttachmentService {
                 .fileName(a.getFileName())
                 .contentType(a.getContentType())
                 .fileSize(a.getFileSize())
+                .uploadedById(a.getUploadedBy() != null ? a.getUploadedBy().getId() : null)
                 .uploadedAt(a.getUploadedAt())
                 .build();
     }

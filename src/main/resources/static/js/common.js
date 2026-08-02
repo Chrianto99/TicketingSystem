@@ -74,11 +74,37 @@
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 field.focus();
-                showError('Comment cannot be empty.');
+                showError('Το σχόλιο δεν μπορεί να είναι κενό.');
                 return;
             }
         }
     }, true);
+
+    // Global "press N for New Ticket" shortcut, available on every page. On /tickets
+    // it opens the create-ticket modal directly (see tickets.js); anywhere else it
+    // navigates there with ?openCreate=true, which tickets.js picks up on load.
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'n' && e.key !== 'N') {
+            return;
+        }
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+            return;
+        }
+        var target = e.target;
+        var tag = target && target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (target && target.isContentEditable)) {
+            return;
+        }
+        if (document.querySelector('dialog[open]')) {
+            return;
+        }
+        e.preventDefault();
+        if (typeof window.openCreateTicketModal === 'function') {
+            window.openCreateTicketModal();
+        } else {
+            window.location.href = '/tickets?openCreate=true';
+        }
+    });
 
     // Replaces onsubmit="return confirm(...)" across the app: add data-confirm="message"
     // to any <form> and it will be intercepted and re-submitted only after confirmation.

@@ -2,25 +2,26 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Log in</title>
+    <title>Σύνδεση</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body>
 <main class="auth-page">
     <div class="auth-card">
-        <h1>Ticketing System</h1>
-        <p th:if="${param.error}" class="modal-error">Invalid username or password.</p>
-        <p th:if="${param.logout}" class="field-label">You have been logged out.</p>
+        <div class="auth-logo"><img th:src="@{/img/gepLogo.png}" alt="Ticketing System"></div>
+        <p class="auth-hint">όνομα χρήστη: [αρχικό_ονόματος].[επώνυμο]<br>κωδικός: qwerty123</p>
+        <p th:if="${param.error}" class="modal-error">Λανθασμένο όνομα χρήστη ή κωδικός πρόσβασης.</p>
+        <p th:if="${param.logout}" class="field-label">Έχετε αποσυνδεθεί.</p>
         <form th:action="@{/login}" method="post" class="auth-form">
             <label>
-                Username
+                Όνομα χρήστη
                 <input type="text" name="username" autofocus="autofocus" required="required">
             </label>
             <label>
-                Password
+                Κωδικός πρόσβασης
                 <input type="password" name="password" required="required">
             </label>
-            <button type="submit" class="btn btn-primary">Log in</button>
+            <button type="submit" class="btn btn-primary">Σύνδεση</button>
         </form>
     </div>
 </main>

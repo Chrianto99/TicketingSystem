@@ -5,10 +5,12 @@ import com.Chrianto.TicketingSystem.entity.enums.UserRole;
 import com.Chrianto.TicketingSystem.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 
 @Controller
@@ -17,6 +19,13 @@ import org.springframework.web.bind.annotation.*;
 public class UserViewController {
 
     private final UserService userService;
+
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        // blank optional fields (email, phoneNumber) should bind as null, not "" — an empty
+        // string would collide with other blank-email users under the unique constraint.
+        binder.registerCustomEditor(String.class, new StringTrimmerEditor(true));
+    }
 
     @GetMapping
     public String listUsers(Model model) {
@@ -61,7 +70,14 @@ public class UserViewController {
     @PostMapping("/{userId}/delete")
     @PreAuthorize("hasRole('ADMIN')")
     public String deleteUser(@PathVariable Long userId) {
-        userService.deleteUser(userId);
-        return "redirect:/users";
+        userService.deactivateUser(userId);
+        return "redirect:/users?deactivated=true";
+    }
+
+    @PostMapping("/{userId}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String reactivateUser(@PathVariable Long userId) {
+        userService.reactivateUser(userId);
+        return "redirect:/users?reactivated=true";
     }
 }

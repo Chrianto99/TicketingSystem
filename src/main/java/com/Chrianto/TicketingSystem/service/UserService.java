@@ -6,6 +6,7 @@ import com.Chrianto.TicketingSystem.dto.request.UserRegisterRequest;
 import com.Chrianto.TicketingSystem.dto.response.UserResponse;
 import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.exception.EntityNotFoundException;
+import com.Chrianto.TicketingSystem.repository.AttachmentRepository;
 import com.Chrianto.TicketingSystem.repository.CommentRepository;
 import com.Chrianto.TicketingSystem.repository.TicketHistoryRepository;
 import com.Chrianto.TicketingSystem.repository.TicketRepository;
@@ -15,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -22,11 +24,13 @@ import java.util.List;
 public class UserService {
 
     private static final String DEFAULT_PASSWORD = "qwerty123";
+    private static final int DEACTIVATION_RETENTION_DAYS = 7;
 
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
     private final TicketHistoryRepository ticketHistoryRepository;
     private final CommentRepository commentRepository;
+    private final AttachmentRepository attachmentRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserResponse registerUser(UserRegisterRequest req) {
@@ -43,7 +47,7 @@ public class UserService {
 
     public void resetPassword(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + userId));
 
         user.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
         userRepository.save(user);
@@ -51,22 +55,23 @@ public class UserService {
 
     public UserResponse updateProfile(Long userId, UserProfileUpdateRequest req) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + userId));
 
         user.setEmail(req.getEmail());
+        user.setPhoneNumber(req.getPhoneNumber());
         user = userRepository.save(user);
         return toResponse(user);
     }
 
     public void changePassword(Long userId, ChangePasswordRequest req) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + userId));
 
         if (!passwordEncoder.matches(req.getCurrentPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("Current password is incorrect");
+            throw new IllegalArgumentException("Ο τρέχων κωδικός πρόσβασης είναι λανθασμένος");
         }
         if (!req.getNewPassword().equals(req.getConfirmPassword())) {
-            throw new IllegalArgumentException("New password and confirmation do not match");
+            throw new IllegalArgumentException("Ο νέος κωδικός πρόσβασης και η επιβεβαίωση δεν ταιριάζουν");
         }
 
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
@@ -82,15 +87,35 @@ public class UserService {
 
     public UserResponse getUserById(Long userId){
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + userId));
 
         return toResponse(user);
     }
 
     @Transactional
+    public void deactivateUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + userId));
+
+        user.setActive(false);
+        user.setScheduledDeletionAt(LocalDateTime.now().plusDays(DEACTIVATION_RETENTION_DAYS));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void reactivateUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + userId));
+
+        user.setActive(true);
+        user.setScheduledDeletionAt(null);
+        userRepository.save(user);
+    }
+
+    @Transactional
     public void deleteUser(Long userId) {
         if (!userRepository.existsById(userId)) {
-            throw new EntityNotFoundException("User not found with id: " + userId);
+            throw new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + userId);
         }
 
         ticketRepository.nullifyCreator(userId);
@@ -99,6 +124,7 @@ public class UserService {
         ticketHistoryRepository.nullifyPerformedBy(userId);
         ticketHistoryRepository.nullifyAssignedTo(userId);
         commentRepository.nullifyAuthor(userId);
+        attachmentRepository.nullifyUploadedBy(userId);
 
         userRepository.deleteById(userId);
     }
@@ -111,6 +137,8 @@ public class UserService {
                 .email(u.getEmail())
                 .phoneNumber(u.getPhoneNumber())
                 .role(u.getRole())
+                .active(u.isActive())
+                .scheduledDeletionAt(u.getScheduledDeletionAt())
                 .build();
     }
 

@@ -9,4 +9,5 @@ public class SubcategoryResponse {
     private Long categoryId;
     private String categoryName;
     private boolean active;
+    private long ticketCount;
 }

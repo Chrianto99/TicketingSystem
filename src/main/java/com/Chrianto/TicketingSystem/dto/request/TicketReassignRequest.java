@@ -7,9 +7,9 @@ import lombok.*;
 @Setter @Getter
 public class TicketReassignRequest {
 
-    @NotNull
+    @NotNull(message = "Ο νέος ανάδοχος χρήστης είναι υποχρεωτικός")
     private Long assignedTo;
 
-    @NotBlank
+    @NotBlank(message = "Το σχόλιο είναι υποχρεωτικό")
     private String commentText;
 }

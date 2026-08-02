@@ -33,6 +33,12 @@
     box-sizing: border-box;
 }
 
+/* Elements with the [hidden] attribute must stay hidden even when a class
+   (e.g. .btn's display:inline-flex) would otherwise override the UA default. */
+[hidden] {
+    display: none !important;
+}
+
 body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -52,36 +58,54 @@ a {
     justify-content: space-between;
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
-    padding: 0 24px;
-    height: 56px;
+    padding: 10px 32px;
+    min-height: 56px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .navbar-brand a {
     color: var(--color-text);
     font-weight: 700;
     font-size: 16px;
+    display: flex;
+    align-items: center;
+}
+
+.navbar-logo {
+    height: 96px;
+    width: auto;
+    display: block;
 }
 
 .navbar-links {
     display: flex;
-    gap: 20px;
+    align-items: center;
+    gap: 6px;
 }
 
 .navbar-links a {
     color: var(--color-text-muted);
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .navbar-links a:hover {
     color: var(--color-text);
+    background: var(--color-bg);
 }
 
 .navbar-user {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 14px;
+    gap: 14px;
+    font-size: 15px;
     color: var(--color-text-muted);
 }
 
@@ -89,15 +113,16 @@ a {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background: var(--color-primary);
     color: #fff;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     text-decoration: none;
     flex-shrink: 0;
+    transition: background-color 0.15s ease;
 }
 
 .navbar-avatar:hover {
@@ -342,6 +367,10 @@ dialog.modal-dialog[open] {
     text-align: center;
 }
 
+.modal-dialog-sm .modal-body.ticket-form {
+    text-align: left;
+}
+
 dialog.modal-dialog::backdrop {
     background: rgba(15, 23, 42, 0.5);
 }
@@ -548,17 +577,34 @@ dialog.modal-dialog::backdrop {
     align-items: center;
     gap: 4px;
     font-size: 13px;
-    padding: 4px 10px;
+    padding: 4px 6px 4px 10px;
     background: #f8f9fb;
     border: 1px solid var(--color-border);
     border-radius: 999px;
     color: var(--color-text);
+}
+
+.attachment-chip a {
+    color: inherit;
     text-decoration: none;
 }
 
-.attachment-chip:hover {
-    border-color: var(--color-primary);
+.attachment-chip a:hover {
     color: var(--color-primary);
+}
+
+.attachment-delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    line-height: 1;
+    padding: 2px;
+}
+
+.attachment-delete:hover {
+    color: var(--color-danger);
 }
 
 .comment-edit-form {
@@ -684,6 +730,39 @@ dialog.modal-dialog::backdrop {
     font-size: 12px;
 }
 
+.combobox {
+    position: relative;
+}
+
+.combobox-options {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    max-height: 220px;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    z-index: 20;
+}
+
+.combobox-options li {
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.combobox-options li:hover,
+.combobox-options li.active {
+    background: var(--color-bg);
+}
+
 .assignee-view {
     display: flex;
     align-items: center;
@@ -706,6 +785,20 @@ dialog.modal-dialog::backdrop {
 
 .icon-btn:hover {
     color: var(--color-text);
+}
+
+.profile-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-section-heading h3 {
+    margin: 0;
+}
+
+.profile-section-heading .icon-btn {
+    font-size: 15px;
 }
 
 .assignee-edit {
@@ -745,41 +838,6 @@ dialog.modal-dialog::backdrop {
     padding: 10px 20px;
     border-top: 1px solid var(--color-border);
     flex-shrink: 0;
-}
-
-.ticket-action-form {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.ticket-action-form .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.ticket-action-form label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--color-text-muted);
-}
-
-.ticket-action-form textarea {
-    width: 100%;
-    padding: 6px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    font-size: 14px;
-    font-family: inherit;
-    resize: vertical;
-    min-height: 40px;
-    transition: min-height 0.15s ease;
-}
-
-.ticket-action-form textarea:focus {
-    min-height: 90px;
 }
 
 .ticket-action-buttons {
@@ -843,6 +901,17 @@ dialog.modal-dialog::backdrop {
     text-align: center;
 }
 
+.auth-logo {
+    display: flex;
+    justify-content: center;
+    margin: 0 0 18px;
+}
+
+.auth-logo img {
+    max-height: 168px;
+    width: auto;
+}
+
 .auth-form {
     display: flex;
     flex-direction: column;
@@ -870,6 +939,14 @@ dialog.modal-dialog::backdrop {
     justify-content: center;
 }
 
+.auth-hint {
+    margin: 0 0 18px;
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--color-text-muted);
+}
+
 /* Simple entity list pages (Categories, Departments) */
 .entity-list {
     display: flex;
@@ -894,6 +971,23 @@ dialog.modal-dialog::backdrop {
 .entity-name {
     font-size: 15px;
     font-weight: 600;
+}
+
+.entity-ticket-count {
+    color: var(--color-text-muted);
+    font-weight: 400;
+    font-size: 13px;
+    margin-left: 4px;
+}
+
+.entity-code {
+    color: var(--color-text-muted);
+    font-weight: 400;
+    font-size: 12.5px;
+    margin-left: 6px;
+    padding: 2px 6px;
+    background: var(--color-bg);
+    border-radius: var(--radius);
 }
 
 .user-info {
@@ -1081,6 +1175,13 @@ dialog.modal-dialog::backdrop {
     z-index: 5;
 }
 
+/* Opens upward instead of downward — for menus in a modal footer, where the
+   dialog's own overflow:hidden would otherwise clip a downward panel. */
+.entity-menu-up .entity-menu-panel {
+    top: auto;
+    bottom: calc(100% + 4px);
+}
+
 .entity-menu-panel form {
     display: flex;
     gap: 6px;
@@ -1096,7 +1197,21 @@ dialog.modal-dialog::backdrop {
 }
 
 .entity-menu-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     padding-bottom: 6px;
+}
+
+.entity-menu-edit-toggle > summary {
+    list-style: none;
+    cursor: pointer;
+}
+
+.entity-menu-edit-toggle > summary::-webkit-details-marker,
+.entity-menu-edit-toggle > summary::marker {
+    display: none;
+    content: "";
 }
 
 .entity-menu-divider {

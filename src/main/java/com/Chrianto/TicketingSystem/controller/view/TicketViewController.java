@@ -50,7 +50,7 @@ public class TicketViewController {
     }
 
     @GetMapping
-    public String listTickets(@RequestParam(required = false) TicketStatus status,
+    public String listTickets(@RequestParam(required = false) String status,
                                @RequestParam(required = false) TicketPriority priority,
                                @RequestParam(required = false) Long departmentId,
                                @RequestParam(required = false) Long categoryId,
@@ -58,7 +58,7 @@ public class TicketViewController {
                                @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
                                @AuthenticationPrincipal User currentUser,
                                Model model) {
-        populateListData(model, status, priority, departmentId, categoryId, scope, currentUser, pageable);
+        populateListData(model, resolveStatusFilter(status), priority, departmentId, categoryId, resolveScopeFilter(scope), currentUser, pageable);
         populateCreateFormData(model, currentUser);
         return "tickets/list";
     }
@@ -67,7 +67,7 @@ public class TicketViewController {
     public String createTicket(@Valid @ModelAttribute("ticketCreateRequest") TicketCreateRequest req,
                                 BindingResult bindingResult,
                                 @RequestParam(defaultValue = "open") String action,
-                                @RequestParam(required = false) TicketStatus status,
+                                @RequestParam(required = false) String status,
                                 @RequestParam(required = false) TicketPriority priority,
                                 @RequestParam(required = false) Long departmentId,
                                 @RequestParam(required = false) Long categoryId,
@@ -76,7 +76,7 @@ public class TicketViewController {
                                 @AuthenticationPrincipal User currentUser,
                                 Model model) {
         if (bindingResult.hasErrors()) {
-            populateListData(model, status, priority, departmentId, categoryId, scope, currentUser, pageable);
+            populateListData(model, resolveStatusFilter(status), priority, departmentId, categoryId, resolveScopeFilter(scope), currentUser, pageable);
             populateCreateFormData(model, currentUser);
             return "tickets/list";
         }
@@ -218,12 +218,43 @@ public class TicketViewController {
         model.addAttribute("ticketPage", ticketService.getAllTickets(status, priority, departmentId, categoryId,
                 createdByUserId, assignedToUserId, pageable));
         model.addAttribute("status", status);
+        // status/scope are null here when the filter means "show everything" (needed for the
+        // JPA query), but a null query param is dropped entirely by Thymeleaf's @{} link
+        // builder — so pagination links must round-trip these string forms instead, or a
+        // "next page" click silently resets both filters back to their defaults.
+        model.addAttribute("statusParam", status == null ? "ALL" : status.name());
+        model.addAttribute("statusFilterActive", status != TicketStatus.OPEN);
         model.addAttribute("priority", priority);
         model.addAttribute("departmentId", departmentId);
         model.addAttribute("categoryId", categoryId);
         model.addAttribute("scope", scope);
+        model.addAttribute("scopeParam", scope == null ? "all" : scope);
         model.addAttribute("statuses", TicketStatus.values());
         model.addAttribute("priorities", TicketPriority.values());
+    }
+
+    // No status param means the page was reached fresh (e.g. nav link) — default to OPEN.
+    // An explicit "ALL" is how the filter dropdown asks to see every status.
+    private TicketStatus resolveStatusFilter(String status) {
+        if (status == null || status.isBlank()) {
+            return TicketStatus.OPEN;
+        }
+        if ("ALL".equalsIgnoreCase(status)) {
+            return null;
+        }
+        return TicketStatus.valueOf(status);
+    }
+
+    // No scope param means the page was reached fresh (e.g. nav link) — default to "assigned"
+    // (My Tickets). An explicit "all" is how the All Tickets tab asks to see everyone's tickets.
+    private String resolveScopeFilter(String scope) {
+        if (scope == null || scope.isBlank()) {
+            return "assigned";
+        }
+        if ("all".equalsIgnoreCase(scope)) {
+            return null;
+        }
+        return scope;
     }
 
     private void populateCreateFormData(Model model, User currentUser) {

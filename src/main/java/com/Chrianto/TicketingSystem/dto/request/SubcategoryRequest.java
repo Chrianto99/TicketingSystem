@@ -6,9 +6,9 @@ import lombok.*;
 
 @Setter @Getter
 public class SubcategoryRequest {
-    @NotBlank
+    @NotBlank(message = "Το όνομα είναι υποχρεωτικό")
     private String name;
 
-    @NotNull
+    @NotNull(message = "Η κατηγορία βλάβης είναι υποχρεωτική")
     private Long categoryId;
 }

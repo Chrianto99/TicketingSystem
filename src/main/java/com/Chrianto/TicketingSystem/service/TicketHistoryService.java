@@ -30,7 +30,7 @@ public class TicketHistoryService {
     public List<TicketHistoryResponse> getTicketHistory(Long ticketId) {
         // confirm the ticket actually exists before querying its history
         ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new EntityNotFoundException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
 
         return ticketHistoryRepository.findByTicketIdOrderByTimestampAsc(ticketId)
                 .stream()
@@ -54,7 +54,7 @@ public class TicketHistoryService {
             }
             case ASSIGNED, REASSIGNED -> {
                 if (assignedTo == null) {
-                    throw new IllegalArgumentException(ticketAction + " requires an assignedTo user");
+                    throw new IllegalArgumentException(ticketAction + ": απαιτείται ανάδοχος χρήστης");
                 }
                 h.setAssignedTo(assignedTo);
                 if (comment != null) {
@@ -68,19 +68,19 @@ public class TicketHistoryService {
             }
             case CANCELLED -> {
                 if (comment == null) {
-                    throw new IllegalArgumentException("CANCELLED requires a comment");
+                    throw new IllegalArgumentException("Η ακύρωση απαιτεί σχόλιο");
                 }
                 h.setComment(comment);
             }
             case COMMENT_ADDED, REOPENED -> {
                 if (comment == null) {
-                    throw new IllegalArgumentException("No comment typed");
+                    throw new IllegalArgumentException("Δεν έχει πληκτρολογηθεί σχόλιο");
                 }
                 h.setComment(comment);
             }
 
 
-            default -> throw new IllegalArgumentException("Unhandled TicketAction: " + ticketAction);
+            default -> throw new IllegalArgumentException("Μη υποστηριζόμενη ενέργεια ticket: " + ticketAction);
         }
 
         ticketHistoryRepository.save(h);
