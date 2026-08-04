@@ -33,17 +33,20 @@
             <option value="assigned" th:selected="${scope == 'assigned'}">Ανατεθειμένα σε εμένα</option>
             <option value="created" th:selected="${scope == 'created'}">Δημιουργήθηκαν από εμένα</option>
         </select>
-<!--        <select name="departmentId" onchange="this.form.submit()">-->
-<!--            <option value="">All departments</option>-->
-<!--            <option th:each="d : ${departments}" th:value="${d.id}" th:text="${d.name}" th:selected="${d.id == departmentId}"></option>-->
-<!--        </select>-->
-<!--        <select name="categoryId" onchange="this.form.submit()">-->
-<!--            <option value="">All categories</option>-->
-<!--            <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}" th:selected="${c.id == categoryId}"></option>-->
-<!--        </select>-->
+        <select name="departmentId" onchange="this.form.submit()">
+            <option value="">Όλα τα τμήματα</option>
+            <option th:each="d : ${departments}" th:value="${d.id}" th:text="${d.name}" th:selected="${d.id == departmentId}"></option>
+        </select>
+        <select name="categoryId" onchange="this.form.submit()">
+            <option value="">Όλες οι κατηγορίες βλάβης</option>
+            <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}" th:selected="${c.id == categoryId}"></option>
+        </select>
 
-        <a th:if="${statusFilterActive or priority != null or departmentId != null or categoryId != null or scope != 'assigned'}"
+        <a th:if="${statusFilterActive or priority != null or departmentId != null or categoryId != null or scope != 'assigned' or not #strings.isEmpty(description)}"
            th:href="@{/tickets}" class="btn">Καθαρισμός φίλτρων</a>
+
+        <input type="search" name="description" id="ticket-description-search" class="filters-search-full"
+               placeholder="Αναζήτηση με βάση την περιγραφή..." th:value="${description}" autocomplete="off">
     </form>
 
     <table class="ticket-table">
@@ -76,7 +79,7 @@
 
     <div class="pagination" th:if="${ticketPage.totalPages > 1}">
         <a th:each="i : ${#numbers.sequence(0, ticketPage.totalPages - 1)}"
-           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${statusParam}, priority=${priority}, departmentId=${departmentId}, categoryId=${categoryId}, scope=${scopeParam})}"
+           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${statusParam}, priority=${priority}, departmentId=${departmentId}, categoryId=${categoryId}, scope=${scopeParam}, description=${description})}"
            th:text="${i + 1}"
            th:classappend="${i == ticketPage.number} ? ' active'"
            class="page-link"></a>
@@ -111,6 +114,13 @@
     <form id="action-modal-form" method="post">
         <div class="modal-body ticket-form">
             <input type="hidden" name="_csrf" id="action-modal-csrf">
+            <div class="form-group" id="action-modal-status-group" style="display:none;">
+                <label for="action-modal-status">Νέα Κατάσταση</label>
+                <select id="action-modal-status">
+                    <option value="resolve">Επίλυση</option>
+                    <option value="cancel">Ακύρωση</option>
+                </select>
+            </div>
             <div class="form-group" id="action-modal-subcategory-group" style="display:none;">
                 <label for="action-modal-subcategory">Υποκατηγορία</label>
                 <select id="action-modal-subcategory" name="subcategoryId"></select>

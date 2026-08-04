@@ -24,24 +24,42 @@
     <p th:if="${param.deactivated != null}" class="success-banner">Ο χρήστης απενεργοποιήθηκε. Θα διαγραφεί οριστικά σε 7 ημέρες αν δεν επανενεργοποιηθεί.</p>
     <p th:if="${param.reactivated != null}" class="success-banner">Ο χρήστης επανενεργοποιήθηκε.</p>
 
-    <div class="entity-list">
-        <div class="entity-card"
-             th:classappend="${!u.active} ? 'entity-card-inactive' : _"
-             th:each="u : ${users}"
-             th:attr="data-user-id=${u.id},data-username=${u.username},data-email=${u.email},data-phone=${u.phoneNumber},data-role=${u.role},data-active=${u.active},data-scheduled-deletion=${u.scheduledDeletionAt}"
-             style="cursor:pointer;">
-            <div class="entity-card-header">
-                <div class="user-info">
-                    <span class="entity-name" th:text="${u.username}"></span>
-                    <span class="badge" th:classappend="'role-' + ${u.role}" th:text="${u.role.displayName}"></span>
-                    <span class="badge entity-status-badge status-inactive" th:if="${!u.active}">Απενεργοποιημένος</span>
-                    <span class="user-email" th:if="${u.email}" th:text="${u.email}"></span>
-                    <span class="user-email" th:if="${u.phoneNumber}" th:text="${u.phoneNumber}"></span>
-                </div>
-            </div>
-        </div>
+    <table class="entity-table">
+        <thead>
+        <tr>
+            <th>Όνομα χρήστη</th>
+            <th>Ρόλος</th>
+            <th>Κατάσταση</th>
+            <th>Email</th>
+            <th>Τηλέφωνο</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="entity-card ticket-row"
+            th:classappend="${!u.active} ? 'entity-card-inactive' : _"
+            th:each="u : ${users}"
+            th:attr="data-user-id=${u.id},data-username=${u.username},data-email=${u.email},data-phone=${u.phoneNumber},data-role=${u.role},data-active=${u.active},data-scheduled-deletion=${u.scheduledDeletionAt}">
+            <td class="entity-name" th:text="${u.username}"></td>
+            <td><span class="badge" th:classappend="'role-' + ${u.role}" th:text="${u.role.displayName}"></span></td>
+            <td>
+                <span class="badge entity-status-badge status-active" th:if="${u.active}">Ενεργός</span>
+                <span class="badge entity-status-badge status-inactive" th:unless="${u.active}">Απενεργοποιημένος</span>
+            </td>
+            <td class="user-email" th:text="${u.email} ?: '—'"></td>
+            <td class="user-email" th:text="${u.phoneNumber} ?: '—'"></td>
+        </tr>
+        <tr th:if="${users.isEmpty()}">
+            <td colspan="5" class="empty-state">Δεν υπάρχουν χρήστες ακόμα.</td>
+        </tr>
+        </tbody>
+    </table>
 
-        <p th:if="${users.isEmpty()}" class="empty-state">Δεν υπάρχουν χρήστες ακόμα.</p>
+    <div class="pagination" th:if="${totalPages > 1}">
+        <a th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+           th:href="@{/users(page=${i}, size=${pageSize})}"
+           th:text="${i + 1}"
+           th:classappend="${i == currentPage} ? ' active'"
+           class="page-link"></a>
     </div>
 </main>
 

@@ -55,10 +55,11 @@ public class TicketViewController {
                                @RequestParam(required = false) Long departmentId,
                                @RequestParam(required = false) Long categoryId,
                                @RequestParam(required = false) String scope,
+                               @RequestParam(required = false) String description,
                                @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
                                @AuthenticationPrincipal User currentUser,
                                Model model) {
-        populateListData(model, resolveStatusFilter(status), priority, departmentId, categoryId, resolveScopeFilter(scope), currentUser, pageable);
+        populateListData(model, resolveStatusFilter(status), priority, departmentId, categoryId, resolveScopeFilter(scope), description, currentUser, pageable);
         populateCreateFormData(model, currentUser);
         return "tickets/list";
     }
@@ -72,11 +73,12 @@ public class TicketViewController {
                                 @RequestParam(required = false) Long departmentId,
                                 @RequestParam(required = false) Long categoryId,
                                 @RequestParam(required = false) String scope,
+                                @RequestParam(required = false) String description,
                                 @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
                                 @AuthenticationPrincipal User currentUser,
                                 Model model) {
         if (bindingResult.hasErrors()) {
-            populateListData(model, resolveStatusFilter(status), priority, departmentId, categoryId, resolveScopeFilter(scope), currentUser, pageable);
+            populateListData(model, resolveStatusFilter(status), priority, departmentId, categoryId, resolveScopeFilter(scope), description, currentUser, pageable);
             populateCreateFormData(model, currentUser);
             return "tickets/list";
         }
@@ -212,11 +214,12 @@ public class TicketViewController {
     }
 
     private void populateListData(Model model, TicketStatus status, TicketPriority priority, Long departmentId,
-                                   Long categoryId, String scope, User currentUser, Pageable pageable) {
+                                   Long categoryId, String scope, String description, User currentUser, Pageable pageable) {
         Long createdByUserId = "created".equals(scope) ? currentUser.getId() : null;
         Long assignedToUserId = "assigned".equals(scope) ? currentUser.getId() : null;
         model.addAttribute("ticketPage", ticketService.getAllTickets(status, priority, departmentId, categoryId,
-                createdByUserId, assignedToUserId, pageable));
+                createdByUserId, assignedToUserId, description, pageable));
+        model.addAttribute("description", description);
         model.addAttribute("status", status);
         // status/scope are null here when the filter means "show everything" (needed for the
         // JPA query), but a null query param is dropped entirely by Thymeleaf's @{} link

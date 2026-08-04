@@ -281,8 +281,8 @@ public class TicketService {
 
     public Page<TicketResponse> getAllTickets(TicketStatus status, TicketPriority priority, Long departmentId,
                                                Long categoryId, Long createdByUserId, Long assignedToUserId,
-                                               Pageable pageable){
-        return ticketRepository.search(status, priority, departmentId, categoryId, createdByUserId, assignedToUserId, pageable)
+                                               String description, Pageable pageable){
+        return ticketRepository.search(status, priority, departmentId, categoryId, createdByUserId, assignedToUserId, description, pageable)
                 .map(this::toResponse);
     }
 

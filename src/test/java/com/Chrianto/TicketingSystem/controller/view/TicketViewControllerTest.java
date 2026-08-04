@@ -76,7 +76,7 @@ class TicketViewControllerTest {
         when(userService.getAllUsers()).thenReturn(List.of());
         // The re-rendered "tickets/list" view (shown on validation failure) also
         // renders the ticket table, so getAllTickets must be stubbed for every test.
-        when(ticketService.getAllTickets(any(), any(), any(), any(), any(), any(), any()))
+        when(ticketService.getAllTickets(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));
     }
 

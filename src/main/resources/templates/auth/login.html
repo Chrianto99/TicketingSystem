@@ -9,17 +9,21 @@
 <main class="auth-page">
     <div class="auth-card">
         <div class="auth-logo"><img th:src="@{/img/gepLogo.png}" alt="Ticketing System"></div>
-        <p class="auth-hint">όνομα χρήστη: [αρχικό_ονόματος].[επώνυμο]<br>κωδικός: qwerty123</p>
-        <p th:if="${param.error}" class="modal-error">Λανθασμένο όνομα χρήστη ή κωδικός πρόσβασης.</p>
+        <!--        <p class="auth-hint">όνομα χρήστη: [αρχικό_ονόματος].[επώνυμο]<br>κωδικός: qwerty123</p>-->
+        <p th:if="${param.error != null and param.error[0] == 'disabled'}" class="modal-error">Ο λογαριασμός σας είναι απενεργοποιημένος. Επικοινωνήστε με τον διαχειριστή.</p>
+        <p th:if="${param.error != null and param.error[0] != 'disabled'}" class="modal-error">Λανθασμένο όνομα χρήστη ή κωδικός πρόσβασης.</p>
         <p th:if="${param.logout}" class="field-label">Έχετε αποσυνδεθεί.</p>
         <form th:action="@{/login}" method="post" class="auth-form">
             <label>
                 Όνομα χρήστη
-                <input type="text" name="username" autofocus="autofocus" required="required">
+                <input type="text" name="username" th:value="${param.username != null ? param.username[0] : ''}"
+                       th:classappend="${param.error != null} ? 'input-error' : ''"
+                       autofocus="autofocus" required="required">
             </label>
             <label>
                 Κωδικός πρόσβασης
-                <input type="password" name="password" required="required">
+                <input type="password" name="password" th:classappend="${param.error != null} ? 'input-error' : ''"
+                       required="required">
             </label>
             <button type="submit" class="btn btn-primary">Σύνδεση</button>
         </form>

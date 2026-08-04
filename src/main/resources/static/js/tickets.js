@@ -17,6 +17,25 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
+    // Live search-by-description: auto-submits the filters form (carrying over
+    // every other active filter) shortly after the user stops typing, instead of
+    // requiring an explicit search button.
+    var descriptionSearchInput = document.getElementById('ticket-description-search');
+    if (descriptionSearchInput) {
+        var descriptionSearchTimer = null;
+        descriptionSearchInput.addEventListener('input', function () {
+            clearTimeout(descriptionSearchTimer);
+            descriptionSearchTimer = setTimeout(function () {
+                descriptionSearchInput.form.submit();
+            }, 400);
+        });
+        if (descriptionSearchInput.value) {
+            descriptionSearchInput.focus();
+            var caretPos = descriptionSearchInput.value.length;
+            descriptionSearchInput.setSelectionRange(caretPos, caretPos);
+        }
+    }
+
     if (actionModal) {
         document.getElementById('action-modal-close').addEventListener('click', function () {
             actionModal.close();
@@ -103,11 +122,18 @@ document.addEventListener('DOMContentLoaded', function () {
             html += '</div>';
         }
 
+        if (ticket.status === 'OPEN') {
+            html += '<div class="ticket-action-buttons ticket-action-buttons-center history-add-comment">';
+            html += '<button type="button" class="btn" id="ticket-comment-btn">💬 Προσθήκη Σχολίου</button>';
+            html += '</div>';
+        }
+
         modalBody.innerHTML = html;
         wireReassign();
         wireCommentEdits();
         wireInfoCollapse();
         wireAttachments(ticket.id);
+        wireCommentButton(ticket);
 
         if (canEdit) {
             document.getElementById('td-edit-toggle').addEventListener('click', function () {
@@ -347,15 +373,30 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function wireCommentButton(ticket) {
+        var btn = document.getElementById('ticket-comment-btn');
+        if (!btn) {
+            return;
+        }
+        btn.addEventListener('click', function () {
+            openActionModal({
+                action: '/tickets/' + ticket.id + '/comments',
+                title: 'Προσθήκη Σχολίου',
+                label: 'Σχόλιο',
+                placeholder: 'Προσθέστε ένα σχόλιο…',
+                submitLabel: 'Σχόλιο',
+                needsSubcategory: false
+            });
+        });
+    }
+
     function actionAreaHtml(ticket) {
         var isOpen = ticket.status === 'OPEN';
         var html = '<div class="ticket-action-area">';
 
         if (isOpen) {
-            html += '<div class="ticket-action-buttons ticket-action-buttons-spread">';
-            html += '<button type="button" class="btn btn-danger" id="ticket-cancel-btn">✗ Ακύρωση</button>';
-            html += '<button type="button" class="btn btn-success" id="ticket-resolve-btn">✓ Επίλυση</button>';
-            html += '<button type="button" class="btn" id="ticket-comment-btn">💬 Σχόλιο</button>';
+            html += '<div class="ticket-action-buttons ticket-action-buttons-center">';
+            html += '<button type="button" class="btn btn-primary" id="ticket-status-btn">🔄 Αλλαγή Κατάστασης</button>';
             html += '</div>';
         } else {
             var isCancelled = ticket.status === 'CANCELLED';
@@ -377,38 +418,8 @@ document.addEventListener('DOMContentLoaded', function () {
         var isOpen = ticket.status === 'OPEN';
 
         if (isOpen) {
-            document.getElementById('ticket-comment-btn').addEventListener('click', function () {
-                openActionModal({
-                    action: '/tickets/' + ticket.id + '/comments',
-                    title: 'Προσθήκη Σχολίου',
-                    label: 'Σχόλιο',
-                    placeholder: 'Προσθέστε ένα σχόλιο…',
-                    submitLabel: 'Σχόλιο',
-                    needsSubcategory: false
-                });
-            });
-
-            document.getElementById('ticket-resolve-btn').addEventListener('click', function () {
-                openActionModal({
-                    action: '/tickets/' + ticket.id + '/resolve',
-                    title: 'Επίλυση Ticket',
-                    label: 'Λύση',
-                    placeholder: 'Περιγράψτε τη λύση…',
-                    submitLabel: 'Επίλυση',
-                    needsSubcategory: !ticket.subcategoryId,
-                    categoryId: ticket.categoryId
-                });
-            });
-
-            document.getElementById('ticket-cancel-btn').addEventListener('click', function () {
-                openActionModal({
-                    action: '/tickets/' + ticket.id + '/cancel',
-                    title: 'Ακύρωση Ticket',
-                    label: 'Λόγος ακύρωσης',
-                    placeholder: 'Περιγράψτε τον λόγο ακύρωσης…',
-                    submitLabel: 'Ακύρωση Ticket',
-                    needsSubcategory: false
-                });
+            document.getElementById('ticket-status-btn').addEventListener('click', function () {
+                openStatusChangeModal(ticket);
             });
         } else {
             document.getElementById('ticket-reopen-btn').addEventListener('click', function () {
@@ -461,6 +472,8 @@ document.addEventListener('DOMContentLoaded', function () {
         var labelEl = document.getElementById('action-modal-comment-label');
         var textarea = document.getElementById('action-modal-comment');
         var submitBtn = document.getElementById('action-modal-submit');
+        var statusGroup = document.getElementById('action-modal-status-group');
+        var statusSelect = document.getElementById('action-modal-status');
         var subcatGroup = document.getElementById('action-modal-subcategory-group');
         var subcatSelect = document.getElementById('action-modal-subcategory');
         var csrfInput = document.getElementById('action-modal-csrf');
@@ -475,6 +488,9 @@ document.addEventListener('DOMContentLoaded', function () {
         submitBtn.disabled = false;
         csrfInput.value = sourceCsrf ? sourceCsrf.value : '';
 
+        statusGroup.style.display = 'none';
+        statusSelect.onchange = null;
+
         if (config.needsSubcategory) {
             subcatGroup.style.display = '';
             subcatSelect.required = true;
@@ -487,6 +503,66 @@ document.addEventListener('DOMContentLoaded', function () {
 
         actionModal.showModal();
         textarea.focus();
+    }
+
+    // "Αλλαγή Κατάστασης" reuses the same confirmation dialog as the other ticket
+    // actions, but adds a status dropdown (default Επίλυση) that switches the
+    // target endpoint, labels, and subcategory requirement on the fly.
+    function openStatusChangeModal(ticket) {
+        var titleEl = document.getElementById('action-modal-title');
+        var statusGroup = document.getElementById('action-modal-status-group');
+        var statusSelect = document.getElementById('action-modal-status');
+        var csrfInput = document.getElementById('action-modal-csrf');
+        var sourceCsrf = document.querySelector('#create-ticket-modal input[name="_csrf"]');
+
+        titleEl.textContent = 'Αλλαγή Κατάστασης';
+        csrfInput.value = sourceCsrf ? sourceCsrf.value : '';
+        statusGroup.style.display = '';
+        statusSelect.value = 'resolve';
+
+        applyStatusChangeOption(ticket, statusSelect.value);
+        statusSelect.onchange = function () {
+            applyStatusChangeOption(ticket, statusSelect.value);
+        };
+
+        actionModal.showModal();
+        document.getElementById('action-modal-comment').focus();
+    }
+
+    function applyStatusChangeOption(ticket, status) {
+        var form = document.getElementById('action-modal-form');
+        var labelEl = document.getElementById('action-modal-comment-label');
+        var textarea = document.getElementById('action-modal-comment');
+        var submitBtn = document.getElementById('action-modal-submit');
+        var subcatGroup = document.getElementById('action-modal-subcategory-group');
+        var subcatSelect = document.getElementById('action-modal-subcategory');
+
+        textarea.value = '';
+        submitBtn.disabled = false;
+
+        if (status === 'cancel') {
+            form.setAttribute('action', '/tickets/' + ticket.id + '/cancel');
+            labelEl.textContent = 'Λόγος ακύρωσης';
+            textarea.placeholder = 'Περιγράψτε τον λόγο ακύρωσης…';
+            submitBtn.textContent = 'Ακύρωση Ticket';
+            subcatGroup.style.display = 'none';
+            subcatSelect.required = false;
+            subcatSelect.innerHTML = '';
+        } else {
+            form.setAttribute('action', '/tickets/' + ticket.id + '/resolve');
+            labelEl.textContent = 'Λύση';
+            textarea.placeholder = 'Περιγράψτε τη λύση…';
+            submitBtn.textContent = 'Επίλυση';
+            if (!ticket.subcategoryId) {
+                subcatGroup.style.display = '';
+                subcatSelect.required = true;
+                loadActionModalSubcategories(ticket.categoryId);
+            } else {
+                subcatGroup.style.display = 'none';
+                subcatSelect.required = false;
+                subcatSelect.innerHTML = '';
+            }
+        }
     }
 
     function loadActionModalSubcategories(categoryId) {

@@ -99,8 +99,9 @@ public class TicketController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long createdByUserId,
             @RequestParam(required = false) Long assignedToUserId,
+            @RequestParam(required = false) String description,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(ticketService.getAllTickets(status, priority, departmentId, categoryId, createdByUserId, assignedToUserId, pageable));
+        return ResponseEntity.ok(ticketService.getAllTickets(status, priority, departmentId, categoryId, createdByUserId, assignedToUserId, description, pageable));
     }
 
     @DeleteMapping("/{ticketId}")

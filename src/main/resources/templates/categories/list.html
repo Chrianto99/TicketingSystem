@@ -19,20 +19,31 @@
         <button type="submit" class="btn btn-primary">+ Προσθήκη Κατηγορίας</button>
     </form>
 
-    <div class="entity-list">
-        <div class="entity-card" th:each="category : ${activeCategories}">
-            <div class="entity-card-header">
-                <span class="entity-name">
-                    <span th:text="${category.name}"></span>
-                    <span class="entity-ticket-count" th:text="'(' + ${category.ticketCount} + ')'"></span>
-                </span>
+    <table class="entity-table">
+        <thead>
+        <tr>
+            <th>Όνομα</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody id="category-list">
+        <th:block th:each="category : ${activeCategories}">
+        <tr class="entity-card">
+            <td class="entity-name">
+                <span th:text="${category.name}"></span>
+                <span class="entity-ticket-count" th:text="'(' + ${category.ticketCount} + ')'"></span>
+            </td>
+            <td class="entity-actions-cell">
                 <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
                     <summary title="Επιλογές">&#8942;</summary>
                     <div class="entity-menu-panel">
-                        <form method="post" th:action="@{/categories/{id}/edit(id=${category.id})}" class="entity-menu-edit">
-                            <input type="text" name="name" th:value="${category.name}" required="required" aria-label="Όνομα κατηγορίας βλάβης">
-                            <button type="submit" class="btn btn-sm">Αποθήκευση</button>
-                        </form>
+                        <details class="entity-menu-edit-toggle">
+                            <summary class="entity-menu-action">Επεξεργασία</summary>
+                            <form method="post" th:action="@{/categories/{id}/edit(id=${category.id})}" class="entity-menu-edit">
+                                <input type="text" name="name" th:value="${category.name}" required="required" aria-label="Όνομα κατηγορίας βλάβης">
+                                <button type="submit" class="btn btn-sm">Αποθήκευση</button>
+                            </form>
+                        </details>
                         <div class="entity-menu-divider"></div>
                         <form method="post" th:action="@{/categories/{id}/toggle-active(id=${category.id})}"
                               data-confirm="Απενεργοποίηση αυτής της κατηγορίας βλάβης; Οι υποκατηγορίες της θα απενεργοποιηθούν επίσης.">
@@ -40,89 +51,101 @@
                         </form>
                     </div>
                 </details>
-            </div>
+            </td>
+        </tr>
+        <tr class="subcategory-row">
+            <td colspan="2">
+                <details class="subcategory-dropdown">
+                    <summary>
+                        Υποκατηγορίες
+                        <span class="subcategory-count"
+                              th:text="'(' + ${#lists.size(activeSubcategoriesByCategory.get(category.id) ?: {}) + #lists.size(inactiveSubcategoriesByCategory.get(category.id) ?: {})} + ')'"></span>
+                    </summary>
 
-            <details class="subcategory-dropdown">
-                <summary>
-                    Υποκατηγορίες
-                    <span class="subcategory-count"
-                          th:text="'(' + ${#lists.size(activeSubcategoriesByCategory.get(category.id) ?: {}) + #lists.size(inactiveSubcategoriesByCategory.get(category.id) ?: {})} + ')'"></span>
-                </summary>
-
-                <ul class="subcategory-list">
-                    <li th:each="sub : ${activeSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item">
-                        <span>
-                            <span th:text="${sub.name}"></span>
-                            <span class="entity-ticket-count" th:text="'(' + ${sub.ticketCount} + ')'"></span>
-                        </span>
-                        <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
-                            <summary title="Επιλογές">&#8942;</summary>
-                            <div class="entity-menu-panel">
-                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}" class="entity-menu-edit">
-                                    <input type="text" name="name" th:value="${sub.name}" required="required" aria-label="Όνομα υποκατηγορίας">
-                                    <button type="submit" class="btn btn-sm">Αποθήκευση</button>
-                                </form>
-                                <div class="entity-menu-divider"></div>
-                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/toggle-active(catId=${category.id}, subId=${sub.id})}">
-                                    <button type="submit" class="entity-menu-action">Απενεργοποίηση</button>
-                                </form>
+                    <ul class="subcategory-list">
+                        <li th:each="sub : ${activeSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item">
+                            <span>
+                                <span th:text="${sub.name}"></span>
+                                <span class="entity-ticket-count" th:text="'(' + ${sub.ticketCount} + ')'"></span>
+                            </span>
+                            <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                                <summary title="Επιλογές">&#8942;</summary>
+                                <div class="entity-menu-panel">
+                                    <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}" class="entity-menu-edit">
+                                        <input type="text" name="name" th:value="${sub.name}" required="required" aria-label="Όνομα υποκατηγορίας">
+                                        <button type="submit" class="btn btn-sm">Αποθήκευση</button>
+                                    </form>
+                                    <div class="entity-menu-divider"></div>
+                                    <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/toggle-active(catId=${category.id}, subId=${sub.id})}">
+                                        <button type="submit" class="entity-menu-action">Απενεργοποίηση</button>
+                                    </form>
+                                </div>
+                            </details>
+                        </li>
+                        <li th:each="sub : ${inactiveSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item subcategory-item-inactive">
+                            <div class="entity-name-group">
+                                <span th:text="${sub.name}"></span>
+                                <span class="entity-ticket-count" th:text="'(' + ${sub.ticketCount} + ')'"></span>
+                                <span class="badge entity-status-badge status-inactive">Ανενεργή</span>
                             </div>
-                        </details>
-                    </li>
-                    <li th:each="sub : ${inactiveSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item subcategory-item-inactive">
-                        <div class="entity-name-group">
-                            <span th:text="${sub.name}"></span>
-                            <span class="entity-ticket-count" th:text="'(' + ${sub.ticketCount} + ')'"></span>
-                            <span class="badge entity-status-badge status-inactive">Ανενεργή</span>
-                        </div>
-                        <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
-                            <summary title="Επιλογές">&#8942;</summary>
-                            <div class="entity-menu-panel">
-                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}" class="entity-menu-edit">
-                                    <input type="text" name="name" th:value="${sub.name}" required="required" aria-label="Όνομα υποκατηγορίας">
-                                    <button type="submit" class="btn btn-sm">Αποθήκευση</button>
-                                </form>
-                                <div class="entity-menu-divider"></div>
-                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/toggle-active(catId=${category.id}, subId=${sub.id})}">
-                                    <button type="submit" class="entity-menu-action">Ενεργοποίηση</button>
-                                </form>
-                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/delete(catId=${category.id}, subId=${sub.id})}"
-                                      data-confirm="Διαγραφή αυτής της υποκατηγορίας; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.">
-                                    <button type="submit" class="entity-menu-action entity-menu-action-danger">Διαγραφή</button>
-                                </form>
-                            </div>
-                        </details>
-                    </li>
-                    <li th:if="${#lists.isEmpty(activeSubcategoriesByCategory.get(category.id) ?: {}) and #lists.isEmpty(inactiveSubcategoriesByCategory.get(category.id) ?: {})}"
-                        class="empty-subcategories">
-                        Δεν υπάρχουν υποκατηγορίες ακόμα.
-                    </li>
-                </ul>
+                            <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                                <summary title="Επιλογές">&#8942;</summary>
+                                <div class="entity-menu-panel">
+                                    <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}" class="entity-menu-edit">
+                                        <input type="text" name="name" th:value="${sub.name}" required="required" aria-label="Όνομα υποκατηγορίας">
+                                        <button type="submit" class="btn btn-sm">Αποθήκευση</button>
+                                    </form>
+                                    <div class="entity-menu-divider"></div>
+                                    <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/toggle-active(catId=${category.id}, subId=${sub.id})}">
+                                        <button type="submit" class="entity-menu-action">Ενεργοποίηση</button>
+                                    </form>
+                                    <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/delete(catId=${category.id}, subId=${sub.id})}"
+                                          data-confirm="Διαγραφή αυτής της υποκατηγορίας; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.">
+                                        <button type="submit" class="entity-menu-action entity-menu-action-danger">Διαγραφή</button>
+                                    </form>
+                                </div>
+                            </details>
+                        </li>
+                        <li th:if="${#lists.isEmpty(activeSubcategoriesByCategory.get(category.id) ?: {}) and #lists.isEmpty(inactiveSubcategoriesByCategory.get(category.id) ?: {})}"
+                            class="empty-subcategories">
+                            Δεν υπάρχουν υποκατηγορίες ακόμα.
+                        </li>
+                    </ul>
 
-                <form method="post" th:action="@{/categories/{id}/subcategories(id=${category.id})}"
-                      class="add-subcategory-form" sec:authorize="hasRole('ADMIN')">
-                    <input type="text" name="name" placeholder="Νέα υποκατηγορία" required="required">
-                    <button type="submit" class="btn">+ Προσθήκη</button>
-                </form>
-            </details>
-        </div>
+                    <form method="post" th:action="@{/categories/{id}/subcategories(id=${category.id})}"
+                          class="add-subcategory-form" sec:authorize="hasRole('ADMIN')">
+                        <input type="text" name="name" placeholder="Νέα υποκατηγορία" required="required">
+                        <button type="submit" class="btn">+ Προσθήκη</button>
+                    </form>
+                </details>
+            </td>
+        </tr>
+        </th:block>
 
-        <h2 class="entity-list-divider" th:if="${!inactiveCategories.isEmpty()}">Ανενεργές</h2>
+        <tr class="entity-list-divider" th:if="${!inactiveCategories.isEmpty()}">
+            <td colspan="2">Ανενεργές</td>
+        </tr>
 
-        <div class="entity-card entity-card-inactive" th:each="category : ${inactiveCategories}">
-            <div class="entity-card-header">
+        <th:block th:each="category : ${inactiveCategories}">
+        <tr class="entity-card entity-card-inactive">
+            <td class="entity-name">
                 <div class="entity-name-group">
-                    <span class="entity-name" th:text="${category.name}"></span>
+                    <span th:text="${category.name}"></span>
                     <span class="entity-ticket-count" th:text="'(' + ${category.ticketCount} + ')'"></span>
                     <span class="badge entity-status-badge status-inactive">Ανενεργή</span>
                 </div>
+            </td>
+            <td class="entity-actions-cell">
                 <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
                     <summary title="Επιλογές">&#8942;</summary>
                     <div class="entity-menu-panel">
-                        <form method="post" th:action="@{/categories/{id}/edit(id=${category.id})}" class="entity-menu-edit">
-                            <input type="text" name="name" th:value="${category.name}" required="required" aria-label="Όνομα κατηγορίας βλάβης">
-                            <button type="submit" class="btn btn-sm">Αποθήκευση</button>
-                        </form>
+                        <details class="entity-menu-edit-toggle">
+                            <summary class="entity-menu-action">Επεξεργασία</summary>
+                            <form method="post" th:action="@{/categories/{id}/edit(id=${category.id})}" class="entity-menu-edit">
+                                <input type="text" name="name" th:value="${category.name}" required="required" aria-label="Όνομα κατηγορίας βλάβης">
+                                <button type="submit" class="btn btn-sm">Αποθήκευση</button>
+                            </form>
+                        </details>
                         <div class="entity-menu-divider"></div>
                         <form method="post" th:action="@{/categories/{id}/toggle-active(id=${category.id})}">
                             <button type="submit" class="entity-menu-action">Ενεργοποίηση</button>
@@ -133,65 +156,72 @@
                         </form>
                     </div>
                 </details>
-            </div>
+            </td>
+        </tr>
+        <tr class="subcategory-row">
+            <td colspan="2">
+                <details class="subcategory-dropdown">
+                    <summary>
+                        Υποκατηγορίες
+                        <span class="subcategory-count"
+                              th:text="'(' + ${#lists.size(activeSubcategoriesByCategory.get(category.id) ?: {}) + #lists.size(inactiveSubcategoriesByCategory.get(category.id) ?: {})} + ')'"></span>
+                    </summary>
 
-            <details class="subcategory-dropdown">
-                <summary>
-                    Υποκατηγορίες
-                    <span class="subcategory-count"
-                          th:text="'(' + ${#lists.size(activeSubcategoriesByCategory.get(category.id) ?: {}) + #lists.size(inactiveSubcategoriesByCategory.get(category.id) ?: {})} + ')'"></span>
-                </summary>
-
-                <ul class="subcategory-list">
-                    <li th:each="sub : ${activeSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item">
-                        <span>
-                            <span th:text="${sub.name}"></span>
-                            <span class="entity-ticket-count" th:text="'(' + ${sub.ticketCount} + ')'"></span>
-                        </span>
-                        <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
-                            <summary title="Επιλογές">&#8942;</summary>
-                            <div class="entity-menu-panel">
-                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}" class="entity-menu-edit">
-                                    <input type="text" name="name" th:value="${sub.name}" required="required" aria-label="Όνομα υποκατηγορίας">
-                                    <button type="submit" class="btn btn-sm">Αποθήκευση</button>
-                                </form>
-                                <div class="entity-menu-divider"></div>
-                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/toggle-active(catId=${category.id}, subId=${sub.id})}">
-                                    <button type="submit" class="entity-menu-action">Απενεργοποίηση</button>
-                                </form>
+                    <ul class="subcategory-list">
+                        <li th:each="sub : ${activeSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item">
+                            <span>
+                                <span th:text="${sub.name}"></span>
+                                <span class="entity-ticket-count" th:text="'(' + ${sub.ticketCount} + ')'"></span>
+                            </span>
+                            <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                                <summary title="Επιλογές">&#8942;</summary>
+                                <div class="entity-menu-panel">
+                                    <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}" class="entity-menu-edit">
+                                        <input type="text" name="name" th:value="${sub.name}" required="required" aria-label="Όνομα υποκατηγορίας">
+                                        <button type="submit" class="btn btn-sm">Αποθήκευση</button>
+                                    </form>
+                                    <div class="entity-menu-divider"></div>
+                                    <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/toggle-active(catId=${category.id}, subId=${sub.id})}">
+                                        <button type="submit" class="entity-menu-action">Απενεργοποίηση</button>
+                                    </form>
+                                </div>
+                            </details>
+                        </li>
+                        <li th:each="sub : ${inactiveSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item subcategory-item-inactive">
+                            <div class="entity-name-group">
+                                <span th:text="${sub.name}"></span>
+                                <span class="entity-ticket-count" th:text="'(' + ${sub.ticketCount} + ')'"></span>
+                                <span class="badge entity-status-badge status-inactive">Ανενεργή</span>
                             </div>
-                        </details>
-                    </li>
-                    <li th:each="sub : ${inactiveSubcategoriesByCategory.get(category.id) ?: {}}" class="subcategory-item subcategory-item-inactive">
-                        <div class="entity-name-group">
-                            <span th:text="${sub.name}"></span>
-                            <span class="entity-ticket-count" th:text="'(' + ${sub.ticketCount} + ')'"></span>
-                            <span class="badge entity-status-badge status-inactive">Ανενεργή</span>
-                        </div>
-                        <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
-                            <summary title="Επιλογές">&#8942;</summary>
-                            <div class="entity-menu-panel">
-                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}">
-                                    <input type="text" name="name" th:value="${sub.name}" required="required">
-                                    <button type="submit" class="btn btn-sm">Αποθήκευση</button>
-                                </form>
-                                <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/delete(catId=${category.id}, subId=${sub.id})}"
-                                      data-confirm="Διαγραφή αυτής της υποκατηγορίας;">
-                                    <button type="submit" class="btn-link-danger">Διαγραφή</button>
-                                </form>
-                            </div>
-                        </details>
-                    </li>
-                    <li th:if="${#lists.isEmpty(activeSubcategoriesByCategory.get(category.id) ?: {}) and #lists.isEmpty(inactiveSubcategoriesByCategory.get(category.id) ?: {})}"
-                        class="empty-subcategories">
-                        Δεν υπάρχουν υποκατηγορίες ακόμα.
-                    </li>
-                </ul>
-            </details>
-        </div>
+                            <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
+                                <summary title="Επιλογές">&#8942;</summary>
+                                <div class="entity-menu-panel">
+                                    <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/edit(catId=${category.id}, subId=${sub.id})}">
+                                        <input type="text" name="name" th:value="${sub.name}" required="required">
+                                        <button type="submit" class="btn btn-sm">Αποθήκευση</button>
+                                    </form>
+                                    <form method="post" th:action="@{/categories/{catId}/subcategories/{subId}/delete(catId=${category.id}, subId=${sub.id})}"
+                                          data-confirm="Διαγραφή αυτής της υποκατηγορίας;">
+                                        <button type="submit" class="btn-link-danger">Διαγραφή</button>
+                                    </form>
+                                </div>
+                            </details>
+                        </li>
+                        <li th:if="${#lists.isEmpty(activeSubcategoriesByCategory.get(category.id) ?: {}) and #lists.isEmpty(inactiveSubcategoriesByCategory.get(category.id) ?: {})}"
+                            class="empty-subcategories">
+                            Δεν υπάρχουν υποκατηγορίες ακόμα.
+                        </li>
+                    </ul>
+                </details>
+            </td>
+        </tr>
+        </th:block>
 
-        <p th:if="${activeCategories.isEmpty() and inactiveCategories.isEmpty()}" class="empty-state">Δεν υπάρχουν κατηγορίες βλάβης ακόμα.</p>
-    </div>
+        <tr th:if="${activeCategories.isEmpty() and inactiveCategories.isEmpty()}">
+            <td colspan="2" class="empty-state">Δεν υπάρχουν κατηγορίες βλάβης ακόμα.</td>
+        </tr>
+        </tbody>
+    </table>
 </main>
 
 </body>

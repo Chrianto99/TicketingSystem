@@ -1,6 +1,7 @@
 package com.Chrianto.TicketingSystem.controller.view;
 
 import com.Chrianto.TicketingSystem.dto.request.UserRegisterRequest;
+import com.Chrianto.TicketingSystem.dto.response.UserResponse;
 import com.Chrianto.TicketingSystem.entity.enums.UserRole;
 import com.Chrianto.TicketingSystem.service.UserService;
 import jakarta.validation.Valid;
@@ -13,10 +14,14 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Controller
 @RequestMapping("/users")
 @RequiredArgsConstructor
 public class UserViewController {
+
+    private static final int DEFAULT_PAGE_SIZE = 10;
 
     private final UserService userService;
 
@@ -28,8 +33,21 @@ public class UserViewController {
     }
 
     @GetMapping
-    public String listUsers(Model model) {
-        model.addAttribute("users", userService.getAllUsers());
+    public String listUsers(@RequestParam(defaultValue = "0") int page,
+                             @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size,
+                             Model model) {
+        List<UserResponse> allUsers = userService.getAllUsers();
+
+        int totalItems = allUsers.size();
+        int totalPages = totalItems == 0 ? 1 : (int) Math.ceil(totalItems / (double) size);
+        int safePage = Math.max(0, Math.min(page, totalPages - 1));
+        int fromIndex = Math.min(safePage * size, totalItems);
+        int toIndex = Math.min(fromIndex + size, totalItems);
+
+        model.addAttribute("users", allUsers.subList(fromIndex, toIndex));
+        model.addAttribute("currentPage", safePage);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("pageSize", size);
         return "users/list";
     }
 

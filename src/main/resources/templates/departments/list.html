@@ -24,13 +24,21 @@
         <input type="text" id="department-search" placeholder="Αναζήτηση τμημάτων...">
     </div>
 
-    <div class="entity-list" id="department-list">
-        <div class="entity-card" th:each="department : ${activeDepartments}">
-            <div class="entity-card-header">
-                <span class="entity-name">
-                    <span th:text="${department.name}"></span>
-                    <span class="entity-code" th:if="${department.code}" th:text="${department.code}"></span>
-                </span>
+    <table class="entity-table">
+        <thead>
+        <tr>
+            <th>Όνομα</th>
+            <th>Κωδικός</th>
+<!--            <th>Κατάσταση</th>-->
+            <th></th>
+        </tr>
+        </thead>
+        <tbody id="department-list">
+        <tr class="entity-card" th:each="department : ${activeDepartments}">
+            <td class="entity-name" th:text="${department.name}"></td>
+            <td><span class="entity-code" th:if="${not #strings.isEmpty(department.code)}" th:text="${department.code}"></span></td>
+<!--            <td><span class="badge entity-status-badge status-active">Ενεργό</span></td>-->
+            <td class="entity-actions-cell">
                 <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
                     <summary title="Επιλογές">&#8942;</summary>
                     <div class="entity-menu-panel">
@@ -48,18 +56,18 @@
                         </form>
                     </div>
                 </details>
-            </div>
-        </div>
+            </td>
+        </tr>
 
-        <h2 class="entity-list-divider" th:if="${!inactiveDepartments.isEmpty()}">Ανενεργά</h2>
+        <tr class="entity-list-divider" th:if="${!inactiveDepartments.isEmpty()}">
+            <td colspan="4">Ανενεργά</td>
+        </tr>
 
-        <div class="entity-card entity-card-inactive" th:each="department : ${inactiveDepartments}">
-            <div class="entity-card-header">
-                <div class="entity-name-group">
-                    <span class="entity-name" th:text="${department.name}"></span>
-                    <span class="entity-code" th:if="${department.code}" th:text="${department.code}"></span>
-                    <span class="badge entity-status-badge status-inactive">Ανενεργό</span>
-                </div>
+        <tr class="entity-card entity-card-inactive" th:each="department : ${inactiveDepartments}">
+            <td class="entity-name" th:text="${department.name}"></td>
+            <td><span class="entity-code" th:if="${not #strings.isEmpty(department.code)}" th:text="${department.code}"></span></td>
+            <td><span class="badge entity-status-badge status-inactive">Ανενεργό</span></td>
+            <td class="entity-actions-cell">
                 <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
                     <summary title="Επιλογές">&#8942;</summary>
                     <div class="entity-menu-panel">
@@ -81,11 +89,24 @@
                         </form>
                     </div>
                 </details>
-            </div>
-        </div>
+            </td>
+        </tr>
 
-        <p th:if="${activeDepartments.isEmpty() and inactiveDepartments.isEmpty()}" class="empty-state">Δεν υπάρχουν τμήματα ακόμα.</p>
-        <p id="department-search-empty" class="empty-state" hidden="hidden">Κανένα τμήμα δεν ταιριάζει με την αναζήτησή σας.</p>
+        <tr th:if="${activeDepartments.isEmpty() and inactiveDepartments.isEmpty()}">
+            <td colspan="4" class="empty-state">Δεν υπάρχουν τμήματα ακόμα.</td>
+        </tr>
+        <tr id="department-search-empty" hidden="hidden">
+            <td colspan="4" class="empty-state">Κανένα τμήμα δεν ταιριάζει με την αναζήτησή σας.</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="pagination" th:if="${totalPages > 1}">
+        <a th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+           th:href="@{/departments(page=${i}, size=${pageSize})}"
+           th:text="${i + 1}"
+           th:classappend="${i == currentPage} ? ' active'"
+           class="page-link"></a>
     </div>
 </main>
 

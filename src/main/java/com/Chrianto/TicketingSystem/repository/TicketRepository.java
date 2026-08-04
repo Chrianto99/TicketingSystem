@@ -20,13 +20,15 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
            "AND (:departmentId IS NULL OR t.department.id = :departmentId) " +
            "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
            "AND (:createdByUserId IS NULL OR t.creator.id = :createdByUserId) " +
-           "AND (:assignedToUserId IS NULL OR t.assignedUser.id = :assignedToUserId)")
+           "AND (:assignedToUserId IS NULL OR t.assignedUser.id = :assignedToUserId) " +
+           "AND (:description IS NULL OR LOWER(t.description) LIKE LOWER(CONCAT('%', CAST(:description AS string), '%')))")
     Page<Ticket> search(@Param("status") TicketStatus status,
                          @Param("priority") TicketPriority priority,
                          @Param("departmentId") Long departmentId,
                          @Param("categoryId") Long categoryId,
                          @Param("createdByUserId") Long createdByUserId,
                          @Param("assignedToUserId") Long assignedToUserId,
+                         @Param("description") String description,
                          Pageable pageable);
 
     @Modifying

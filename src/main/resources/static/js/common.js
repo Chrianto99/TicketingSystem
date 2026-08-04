@@ -45,6 +45,16 @@
     window.showError = showError;
     window.showConfirm = showConfirm;
 
+    // Close any open "⋮" options menu (.entity-menu) when clicking anywhere
+    // outside of it — native <details> only closes via its own summary.
+    document.addEventListener('click', function (e) {
+        document.querySelectorAll('.entity-menu[open]').forEach(function (menu) {
+            if (!menu.contains(e.target)) {
+                menu.removeAttribute('open');
+            }
+        });
+    });
+
     document.addEventListener('DOMContentLoaded', function () {
         var errorModal = document.getElementById('error-modal');
         if (errorModal) {
