@@ -5,6 +5,7 @@ import com.Chrianto.TicketingSystem.dto.request.UserProfileUpdateRequest;
 import com.Chrianto.TicketingSystem.dto.request.UserRegisterRequest;
 import com.Chrianto.TicketingSystem.dto.response.UserResponse;
 import com.Chrianto.TicketingSystem.entity.User;
+import com.Chrianto.TicketingSystem.entity.enums.UserRole;
 import com.Chrianto.TicketingSystem.exception.EntityNotFoundException;
 import com.Chrianto.TicketingSystem.repository.AttachmentRepository;
 import com.Chrianto.TicketingSystem.repository.CommentRepository;
@@ -38,6 +39,8 @@ public class UserService {
         user.setUsername(req.getUsername());
         user.setEmail(req.getEmail());
         user.setPhoneNumber(req.getPhoneNumber());
+        user.setFirstName(req.getFirstName());
+        user.setLastName(req.getLastName());
         user.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
         user.setRole(req.getRole());
 
@@ -59,6 +62,8 @@ public class UserService {
 
         user.setEmail(req.getEmail());
         user.setPhoneNumber(req.getPhoneNumber());
+        user.setFirstName(req.getFirstName());
+        user.setLastName(req.getLastName());
         user = userRepository.save(user);
         return toResponse(user);
     }
@@ -113,6 +118,15 @@ public class UserService {
     }
 
     @Transactional
+    public void toggleAdminRole(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + userId));
+
+        user.setRole(user.getRole() == UserRole.ADMIN ? UserRole.USER : UserRole.ADMIN);
+        userRepository.save(user);
+    }
+
+    @Transactional
     public void deleteUser(Long userId) {
         if (!userRepository.existsById(userId)) {
             throw new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + userId);
@@ -136,6 +150,8 @@ public class UserService {
                 .username(u.getUsername())
                 .email(u.getEmail())
                 .phoneNumber(u.getPhoneNumber())
+                .firstName(u.getFirstName())
+                .lastName(u.getLastName())
                 .role(u.getRole())
                 .active(u.isActive())
                 .scheduledDeletionAt(u.getScheduledDeletionAt())

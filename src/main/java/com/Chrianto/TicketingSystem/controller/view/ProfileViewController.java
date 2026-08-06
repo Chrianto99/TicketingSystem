@@ -73,6 +73,8 @@ public class ProfileViewController {
         UserProfileUpdateRequest req = new UserProfileUpdateRequest();
         req.setEmail(user.getEmail());
         req.setPhoneNumber(user.getPhoneNumber());
+        req.setFirstName(user.getFirstName());
+        req.setLastName(user.getLastName());
         return req;
     }
 }

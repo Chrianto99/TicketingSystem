@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api")
@@ -24,11 +25,16 @@ public class AttachmentController {
 
     private final AttachmentService attachmentService;
 
-    @PostMapping("/comments/{commentId}/attachments")
-    public ResponseEntity<AttachmentResponse> uploadAttachment(@PathVariable Long commentId,
+    @PostMapping("/tickets/{ticketId}/attachments")
+    public ResponseEntity<AttachmentResponse> uploadAttachment(@PathVariable Long ticketId,
                                                                  @RequestParam("file") MultipartFile file,
                                                                  @AuthenticationPrincipal User currentUser) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(attachmentService.uploadAttachment(commentId, file, currentUser));
+        return ResponseEntity.status(HttpStatus.CREATED).body(attachmentService.uploadAttachment(ticketId, file, currentUser));
+    }
+
+    @GetMapping("/tickets/{ticketId}/attachments")
+    public ResponseEntity<List<AttachmentResponse>> getAttachmentsForTicket(@PathVariable Long ticketId) {
+        return ResponseEntity.ok(attachmentService.getAttachmentsForTicket(ticketId));
     }
 
     @DeleteMapping("/attachments/{attachmentId}")

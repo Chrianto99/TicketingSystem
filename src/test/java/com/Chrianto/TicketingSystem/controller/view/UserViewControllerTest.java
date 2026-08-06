@@ -287,4 +287,45 @@ class UserViewControllerTest {
 
         verifyNoInteractions(userService);
     }
+
+    @Test
+    void toggleAdmin_asAdminOnOtherUser_togglesRoleAndRedirects() throws Exception {
+        mockMvc.perform(post("/users/5/toggle-admin")
+                        .with(user(adminUser))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/users?roleChanged=true"));
+
+        verify(userService).toggleAdminRole(5L);
+    }
+
+    @Test
+    void toggleAdmin_onOwnAccount_doesNotToggleAndRedirectsWithError() throws Exception {
+        mockMvc.perform(post("/users/" + adminUser.getId() + "/toggle-admin")
+                        .with(user(adminUser))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/users?roleChangeError=true"));
+
+        verify(userService, never()).toggleAdminRole(any());
+    }
+
+    @Test
+    void toggleAdmin_asNonAdmin_isForbiddenAndDoesNotToggle() throws Exception {
+        mockMvc.perform(post("/users/5/toggle-admin")
+                        .with(user(regularUser))
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void toggleAdmin_withoutCsrfToken_isForbiddenAndDoesNotToggle() throws Exception {
+        mockMvc.perform(post("/users/5/toggle-admin")
+                        .with(user(adminUser)))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(userService);
+    }
 }

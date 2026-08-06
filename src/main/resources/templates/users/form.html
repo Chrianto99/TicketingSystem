@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Νέος Χρήστης</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="icon" type="image/png" th:href="@{/img/favicon.png}">
 </head>
 <body>
 <div th:replace="~{fragments/nav :: nav}"></div>
@@ -18,6 +19,17 @@
             <label for="u-username">Όνομα χρήστη</label>
             <input type="text" id="u-username" th:field="*{username}" required="required">
             <span class="field-error" th:if="${#fields.hasErrors('username')}" th:errors="*{username}"></span>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="u-first-name">Όνομα (προαιρετικό)</label>
+                <input type="text" id="u-first-name" th:field="*{firstName}">
+            </div>
+            <div class="form-group">
+                <label for="u-last-name">Επώνυμο (προαιρετικό)</label>
+                <input type="text" id="u-last-name" th:field="*{lastName}">
+            </div>
         </div>
 
         <div class="form-group">

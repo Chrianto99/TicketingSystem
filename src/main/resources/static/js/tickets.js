@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function () {
         window.history.replaceState(null, '', cleanUrl);
     }
 
-    function openTicketModal(ticketId) {
+    function openTicketModal(ticketId, activeTab) {
         modalTitle.textContent = 'Ticket #' + ticketId;
         modalStatusBadge.style.display = 'none';
         modalPriorityBadge.style.display = 'none';
@@ -69,13 +69,20 @@ document.addEventListener('DOMContentLoaded', function () {
         modalBody.innerHTML = '<p>Φόρτωση…</p>';
         modalFooter.innerHTML = '';
         modalFooter.style.display = 'none';
+        var headerMenu = document.getElementById('ticket-modal-menu');
+        headerMenu.hidden = true;
+        headerMenu.removeAttribute('open');
         modal.showModal();
 
         Promise.all([
             fetch('/api/tickets/' + ticketId).then(handleResponse),
-            fetch('/api/tickets/' + ticketId + '/history').then(handleResponse)
+            fetch('/api/tickets/' + ticketId + '/history').then(handleResponse),
+            fetch('/api/tickets/' + ticketId + '/attachments').then(handleResponse)
         ]).then(function (results) {
-            renderTicket(results[0], results[1]);
+            renderTicket(results[0], results[1], results[2]);
+            if (activeTab) {
+                activateTab(activeTab);
+            }
         }).catch(function (err) {
             modal.close();
             window.showError('Αποτυχία φόρτωσης ticket: ' + err.message);
@@ -89,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return response.json();
     }
 
-    function renderTicket(ticket, history) {
+    function renderTicket(ticket, history, attachments) {
         modalTitle.textContent = 'Ticket #' + ticket.id;
         modalStatusBadge.textContent = STATUS_LABELS[ticket.status] || ticket.status;
         modalStatusBadge.className = 'badge status-' + ticket.status;
@@ -99,101 +106,163 @@ document.addEventListener('DOMContentLoaded', function () {
         modalPriorityBadge.style.display = '';
         modalMeta.textContent = 'Δημιουργήθηκε από ' + (ticket.creatorUsername || 'διαγραμμένο χρήστη') + ' ' + formatRelativeTime(ticket.createdAt);
 
-        var canEdit = currentUserId && String(ticket.creatorId) === currentUserId;
-
         var html = '';
 
-        html += '<div class="section-heading-row"><h3>ΠΛΗΡΟΦΟΡΙΕΣ</h3>';
-        html += '<button type="button" class="icon-btn" id="td-info-toggle" title="Απόκρυψη" aria-expanded="true">▾</button>';
-        if (canEdit) {
-            html += '<button type="button" class="icon-btn" id="td-edit-toggle" title="Επεξεργασία">✎</button>';
-        }
+        html += '<div class="modal-tabs" role="tablist">';
+        html += '<button type="button" class="modal-tab active" data-tab-target="td-tab-info" role="tab" aria-selected="true">Πληροφορίες</button>';
+        html += '<button type="button" class="modal-tab" data-tab-target="td-tab-history" role="tab" aria-selected="false">Ιστορικό</button>';
+        html += '<button type="button" class="modal-tab" data-tab-target="td-tab-comments" role="tab" aria-selected="false">Σχόλια</button>';
         html += '</div>';
-        html += '<div id="info-fields">' + infoFieldsHtml(ticket) + '</div>';
 
-        html += '<h3>Ιστορικό</h3>';
-        if (!history.length) {
+        html += '<div id="td-tab-info" class="modal-tab-panel">';
+        html += '<h2 class="ticket-summary-title">' + escapeHtml(ticket.summary || '—') + '</h2>';
+        html += '<div id="info-fields">' + infoFieldsHtml(ticket, attachments) + '</div>';
+        html += '</div>';
+
+        var actionHistory = history.filter(function (h) { return h.action !== 'COMMENT_ADDED'; });
+        html += '<div id="td-tab-history" class="modal-tab-panel" style="display:none;">';
+        if (!actionHistory.length) {
             html += '<p class="field-label" style="text-align:center;">Δεν υπάρχει ιστορικό ακόμα.</p>';
         } else {
             html += '<div class="timeline">';
-            history.forEach(function (h) {
-                html += historyItemHtml(h, ticket.id);
+            actionHistory.forEach(function (h) {
+                html += historyItemHtml(h);
             });
             html += '</div>';
         }
+        html += '</div>';
 
+        var comments = history.filter(function (h) { return h.commentText; }).reverse();
+        html += '<div id="td-tab-comments" class="modal-tab-panel" style="display:none;">';
         if (ticket.status === 'OPEN') {
-            html += '<div class="ticket-action-buttons ticket-action-buttons-center history-add-comment">';
-            html += '<button type="button" class="btn" id="ticket-comment-btn">💬 Προσθήκη Σχολίου</button>';
+            html += composeCommentHtml(ticket.id);
+        }
+        if (!comments.length) {
+            html += '<p class="field-label" style="text-align:center;">Δεν υπάρχουν σχόλια ακόμα.</p>';
+        } else {
+            html += '<div class="timeline">';
+            comments.forEach(function (h) {
+                html += commentTabItemHtml(h, ticket.id);
+            });
             html += '</div>';
         }
+        html += '</div>';
 
         modalBody.innerHTML = html;
         wireReassign();
-        wireCommentEdits();
-        wireInfoCollapse();
+        wireResolveForm(ticket);
+        wireCommentTabEdits();
+        wireCommentCompose(ticket.id);
+        wireModalTabs();
         wireAttachments(ticket.id);
-        wireCommentButton(ticket);
-
-        if (canEdit) {
-            document.getElementById('td-edit-toggle').addEventListener('click', function () {
-                var fields = document.getElementById('info-fields');
-                var infoToggle = document.getElementById('td-info-toggle');
-                fields.style.display = '';
-                infoToggle.textContent = '▾';
-                infoToggle.title = 'Απόκρυψη';
-                infoToggle.setAttribute('aria-expanded', 'true');
-                fields.innerHTML = infoEditFormHtml(ticket);
-                wireInfoEdit(ticket);
-            });
-        }
+        wireHeaderMenu(ticket, attachments);
 
         modalFooter.innerHTML = actionAreaHtml(ticket);
         modalFooter.style.display = '';
         wireActionButtons(ticket);
     }
 
-    function infoFieldsHtml(ticket) {
+    // "⋮" header menu: Επεξεργασία (edit info, creator-only) and Ακύρωση Ticket
+    // (only while OPEN — matches the same rules the backend already enforces).
+    function wireHeaderMenu(ticket, attachments) {
+        var menu = document.getElementById('ticket-modal-menu');
+        var editBtn = document.getElementById('ticket-menu-edit-btn');
+        var cancelBtn = document.getElementById('ticket-menu-cancel-btn');
+        var divider = menu.querySelector('.entity-menu-divider');
+
+        var isAdmin = document.body.getAttribute('data-is-admin') === 'true';
+        var canEdit = currentUserId && (isAdmin || String(ticket.creatorId) === currentUserId);
+        var canCancel = ticket.status === 'OPEN';
+
+        editBtn.hidden = !canEdit;
+        cancelBtn.hidden = !canCancel;
+        divider.hidden = !(canEdit && canCancel);
+        menu.hidden = !canEdit && !canCancel;
+        menu.removeAttribute('open');
+
+        editBtn.onclick = canEdit ? function () {
+            menu.removeAttribute('open');
+            activateTab('td-tab-info');
+            document.getElementById('info-fields').innerHTML = infoEditFormHtml(ticket);
+            wireInfoEdit(ticket, attachments);
+        } : null;
+
+        cancelBtn.onclick = canCancel ? function () {
+            menu.removeAttribute('open');
+            openActionModal({
+                action: '/tickets/' + ticket.id + '/cancel',
+                title: 'Ακύρωση Ticket',
+                label: 'Λόγος ακύρωσης',
+                placeholder: 'Περιγράψτε τον λόγο ακύρωσης…',
+                submitLabel: 'Ακύρωση Ticket',
+                needsSubcategory: false
+            });
+        } : null;
+    }
+
+    function infoFieldsHtml(ticket, attachments) {
         var html = '';
 
-        html += textField('Περίληψη', 'td-description', ticket.description);
-        html += '<div class="form-row">' +
-            textField('Όνομα καλούντος', 'td-caller-name', ticket.callerName) +
-            textField('Αριθμός τηλεφώνου', 'td-phone', ticket.phoneNumber) +
-            '</div>';
-
-        html += '<div class="form-row">';
-        html += textField('Τμήμα', 'td-department', ticket.departmentName);
+        html += fieldBlock('Όνομα καλούντος', escapeHtml(ticket.callerName || '—'));
+        html += fieldBlock('Αριθμός τηλεφώνου', escapeHtml(ticket.phoneNumber || '—'));
+        html += fieldBlock('Τμήμα', escapeHtml(ticket.departmentName || '—'));
         if (ticket.ipAddress) {
-            html += textField('Διεύθυνση IP', 'td-ip', ticket.ipAddress);
+            html += fieldBlock('Διεύθυνση IP', escapeHtml(ticket.ipAddress));
         }
-        html += '</div>';
 
         var categoryValue = ticket.category + (ticket.subcategory ? ' → ' + ticket.subcategory : '');
-        html += textField('Κατηγορία Βλάβης', 'td-category', categoryValue);
+        html += fieldBlock('Κατηγορία Βλάβης', escapeHtml(categoryValue));
 
-        html += '<div class="form-group">';
-        html += '<label for="td-assignee">Ανατέθηκε σε</label>';
-        html += '<div class="assignee-view" id="assignee-view">';
-        html += '<select id="td-assignee" disabled="disabled"><option selected="selected">' + escapeHtml(ticket.assignedUsername || 'Χωρίς ανάθεση') + '</option></select>';
+        var assigneeValue = '<div class="assignee-view" id="assignee-view">';
+        assigneeValue += '<span id="td-assignee">' + escapeHtml(ticket.assignedUsername || 'Χωρίς ανάθεση') + '</span>';
         if (ticket.status === 'OPEN') {
-            html += '<button type="button" class="icon-btn" id="td-reassign-toggle" title="Επανανάθεση">✎</button>';
+            assigneeValue += '<button type="button" class="btn btn-sm" id="td-reassign-toggle">Ανάθεση σε</button>';
         }
-        html += '</div>';
+        assigneeValue += '</div>';
+        html += fieldBlock('Ανατέθηκε σε', assigneeValue);
+
         if (ticket.status === 'OPEN') {
             var csrfInputForReassign = document.querySelector('#create-ticket-modal input[name="_csrf"]');
             var reassignCsrfToken = csrfInputForReassign ? csrfInputForReassign.value : '';
             html += '<form id="td-reassign-form" class="assignee-edit" method="post" action="/tickets/' + ticket.id + '/reassign" style="display:none;">';
             html += '<input type="hidden" name="_csrf" value="' + escapeHtml(reassignCsrfToken) + '">';
             html += '<select name="assignedTo" id="td-reassign-select"></select>';
-            html += '<input type="text" name="commentText" placeholder="Λόγος (υποχρεωτικό)" required="required">';
+            html += '<input type="text" name="commentText" placeholder="Λόγος (προαιρετικό)">';
             html += '<button type="submit" class="btn btn-primary btn-sm">Αποθήκευση</button>';
             html += '<button type="button" class="btn btn-sm" id="td-reassign-cancel">Άκυρο</button>';
             html += '</form>';
         }
+
+        html += fieldBlock('Λεπτομέρειες', escapeHtml(ticket.description || '—'));
+
+        html += '<div class="field-label" style="margin-top:10px;">Λύση</div>';
+        html += '<div class="description-block" id="resolution-view">' + escapeHtml(ticket.resolution || '—') + '</div>';
+        if (ticket.status === 'OPEN') {
+            html += '<form id="td-resolve-form" class="resolve-edit" style="display:none;">';
+            html += '<textarea id="td-resolve-textarea" placeholder="Περιγράψτε τη λύση…">' + escapeHtml(ticket.resolution || '') + '</textarea>';
+            if (!ticket.subcategoryId) {
+                html += '<select id="td-resolve-subcategory"><option value="">Φόρτωση…</option></select>';
+            }
+            html += '<div class="ticket-action-buttons">';
+            html += '<button type="button" class="btn btn-icon-only" id="td-resolve-cancel" title="Άκυρο" aria-label="Άκυρο">✗</button>';
+            html += '<button type="submit" class="btn btn-primary btn-icon-only" id="td-resolve-submit" title="Επιβεβαίωση" aria-label="Επιβεβαίωση">✓</button>';
+            html += '</div>';
+            html += '</form>';
+        }
+
+        html += '<div class="field-label attachments-heading" style="margin-top:10px;">';
+        html += '<span>Επισυναπτόμενα</span>';
+        html += '<button type="button" class="icon-btn" id="td-attachment-toggle" title="Επισύναψη αρχείου">📎</button>';
         html += '</div>';
+        html += '<input type="file" id="td-attachment-input" hidden>';
+        html += '<div id="td-attachment-list">' + attachmentsHtml(attachments) + '</div>';
 
         return html;
+    }
+
+    function fieldBlock(label, valueHtml) {
+        return '<div class="field-label" style="margin-top:10px;">' + escapeHtml(label) + '</div>' +
+            '<div class="description-block">' + valueHtml + '</div>';
     }
 
     function infoEditFormHtml(ticket) {
@@ -204,34 +273,50 @@ document.addEventListener('DOMContentLoaded', function () {
         html += '<input type="hidden" name="_csrf" value="' + escapeHtml(csrfToken) + '">';
 
         html += '<div class="form-group">';
-        html += '<label for="td-edit-description">Περίληψη</label>';
-        html += '<textarea id="td-edit-description" name="description" required="required">' + escapeHtml(ticket.description) + '</textarea>';
+        html += '<label for="td-edit-summary">Τίτλος</label>';
+        html += '<textarea id="td-edit-summary" name="summary">' + escapeHtml(ticket.summary || '') + '</textarea>';
         html += '</div>';
 
-        html += '<div class="form-row">';
-        html += '<div class="form-group"><label for="td-edit-caller-name">Όνομα καλούντος</label>' +
-            '<input type="text" id="td-edit-caller-name" name="callerName" value="' + escapeHtml(ticket.callerName) + '" required="required"></div>';
-        html += '<div class="form-group"><label for="td-edit-phone">Αριθμός τηλεφώνου</label>' +
-            '<input type="text" id="td-edit-phone" name="phoneNumber" value="' + escapeHtml(ticket.phoneNumber) + '" required="required"></div>';
+        html += '<div class="form-group">';
+        html += '<label for="td-edit-caller-name">Όνομα καλούντος</label>';
+        html += '<input type="text" id="td-edit-caller-name" name="callerName" value="' + escapeHtml(ticket.callerName || '') + '">';
         html += '</div>';
 
-        html += '<div class="form-row">';
-        html += '<div class="form-group"><label for="td-edit-department">Τμήμα</label>' +
-            '<select id="td-edit-department" name="departmentId" required="required"></select></div>';
-        html += '<div class="form-group"><label for="td-edit-ip">Διεύθυνση IP</label>' +
-            '<input type="text" id="td-edit-ip" name="ipAddress" value="' + escapeHtml(ticket.ipAddress || '') + '" placeholder="Προαιρετικό" ' +
-            'pattern="^((25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d?\\d)$" title="Πρέπει να είναι έγκυρη διεύθυνση IPv4"></div>';
+        html += '<div class="form-group">';
+        html += '<label for="td-edit-phone">Αριθμός τηλεφώνου<span class="required-mark">*</span></label>';
+        html += '<input type="text" id="td-edit-phone" name="phoneNumber" value="' + escapeHtml(ticket.phoneNumber || '') + '" required="required">';
         html += '</div>';
 
-        html += '<div class="form-row">';
-        html += '<div class="form-group"><label for="td-edit-category">Κατηγορία Βλάβης</label>' +
-            '<select id="td-edit-category" name="categoryId" required="required"></select></div>';
-        html += '<div class="form-group"><label for="td-edit-subcategory">Υποκατηγορία</label>' +
-            '<select id="td-edit-subcategory" name="subcategoryId"><option value="">Επιλέξτε πρώτα κατηγορία βλάβης</option></select></div>';
+        html += '<div class="form-group">';
+        html += '<label for="td-edit-department">Τμήμα</label>';
+        html += '<select id="td-edit-department" name="departmentId" required="required"></select>';
         html += '</div>';
 
-        html += '<div class="form-group"><label for="td-edit-priority">Προτεραιότητα</label>' +
-            '<select id="td-edit-priority" name="priority" required="required"></select></div>';
+        html += '<div class="form-group">';
+        html += '<label for="td-edit-ip">Διεύθυνση IP</label>';
+        html += '<input type="text" id="td-edit-ip" name="ipAddress" value="' + escapeHtml(ticket.ipAddress || '') + '" placeholder="Προαιρετικό" ' +
+            'pattern="^((25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d?\\d)$" title="Πρέπει να είναι έγκυρη διεύθυνση IPv4">';
+        html += '</div>';
+
+        html += '<div class="form-group">';
+        html += '<label for="td-edit-category">Κατηγορία Βλάβης<span class="required-mark">*</span></label>';
+        html += '<select id="td-edit-category" name="categoryId" required="required"></select>';
+        html += '</div>';
+
+        html += '<div class="form-group">';
+        html += '<label for="td-edit-subcategory">Υποκατηγορία</label>';
+        html += '<select id="td-edit-subcategory" name="subcategoryId"><option value="">Επιλέξτε πρώτα κατηγορία βλάβης</option></select>';
+        html += '</div>';
+
+        html += '<div class="form-group">';
+        html += '<label for="td-edit-priority">Προτεραιότητα<span class="required-mark">*</span></label>';
+        html += '<select id="td-edit-priority" name="priority" required="required"></select>';
+        html += '</div>';
+
+        html += '<div class="form-group">';
+        html += '<label for="td-edit-description">Λεπτομέρειες<span class="required-mark">*</span></label>';
+        html += '<textarea id="td-edit-description" name="description" required="required">' + escapeHtml(ticket.description || '') + '</textarea>';
+        html += '</div>';
 
         html += '<div class="ticket-action-buttons">';
         html += '<button type="button" class="btn" id="td-edit-cancel-btn">Άκυρο</button>';
@@ -241,7 +326,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return html;
     }
 
-    function wireInfoEdit(ticket) {
+    function wireInfoEdit(ticket, attachments) {
         var deptSelect = document.getElementById('td-edit-department');
         var catSelect = document.getElementById('td-edit-category');
         var subcatSelect = document.getElementById('td-edit-subcategory');
@@ -264,8 +349,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         cancelBtn.addEventListener('click', function () {
-            document.getElementById('info-fields').innerHTML = infoFieldsHtml(ticket);
+            document.getElementById('info-fields').innerHTML = infoFieldsHtml(ticket, attachments);
             wireReassign();
+            wireAttachments(ticket.id);
         });
     }
 
@@ -360,33 +446,122 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function wireInfoCollapse() {
-        var toggle = document.getElementById('td-info-toggle');
-        var fields = document.getElementById('info-fields');
+    // The "Επίλυση Ticket" footer button doesn't open a modal — it reveals this
+    // form in place of the read-only Λύση value (wired here) and focuses it.
+    function wireResolveForm(ticket) {
+        var form = document.getElementById('td-resolve-form');
+        if (!form) {
+            return;
+        }
+        var view = document.getElementById('resolution-view');
+        var textarea = document.getElementById('td-resolve-textarea');
+        var subcatSelect = document.getElementById('td-resolve-subcategory');
+        var cancelBtn = document.getElementById('td-resolve-cancel');
 
-        toggle.addEventListener('click', function () {
-            var collapsed = fields.style.display === 'none';
-            fields.style.display = collapsed ? '' : 'none';
-            toggle.textContent = collapsed ? '▾' : '▸';
-            toggle.title = collapsed ? 'Απόκρυψη' : 'Εμφάνιση';
-            toggle.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
+        if (subcatSelect) {
+            loadResolveSubcategories(ticket.categoryId);
+        }
+
+        cancelBtn.addEventListener('click', function () {
+            form.style.display = 'none';
+            view.style.display = '';
+        });
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var resolutionText = textarea.value.trim();
+            if (!resolutionText) {
+                window.showError('Πρέπει να περιγράψετε τη λύση.');
+                return;
+            }
+            if (subcatSelect && !subcatSelect.value) {
+                window.showError('Απαιτείται υποκατηγορία για την επίλυση ενός ticket.');
+                return;
+            }
+
+            var submitBtn = document.getElementById('td-resolve-submit');
+            submitBtn.disabled = true;
+
+            var payload = { commentText: resolutionText };
+            if (subcatSelect && subcatSelect.value) {
+                payload.subcategoryId = subcatSelect.value;
+            }
+
+            var csrfInput = document.querySelector('#create-ticket-modal input[name="_csrf"]');
+            var headers = { 'Content-Type': 'application/json' };
+            if (csrfInput) {
+                headers['X-CSRF-TOKEN'] = csrfInput.value;
+            }
+
+            fetch('/api/tickets/' + ticket.id + '/resolve', {
+                method: 'PATCH',
+                headers: headers,
+                body: JSON.stringify(payload)
+            }).then(function (response) {
+                if (!response.ok) {
+                    return response.json().catch(function () {
+                        return {};
+                    }).then(function (body) {
+                        throw new Error(body.error || Object.values(body)[0] || ('HTTP ' + response.status));
+                    });
+                }
+                return response.json();
+            }).then(function () {
+                openTicketModal(ticket.id, 'td-tab-info');
+            }).catch(function (err) {
+                submitBtn.disabled = false;
+                window.showError('Αποτυχία επίλυσης ticket: ' + err.message);
+            });
         });
     }
 
-    function wireCommentButton(ticket) {
-        var btn = document.getElementById('ticket-comment-btn');
-        if (!btn) {
-            return;
-        }
-        btn.addEventListener('click', function () {
-            openActionModal({
-                action: '/tickets/' + ticket.id + '/comments',
-                title: 'Προσθήκη Σχολίου',
-                label: 'Σχόλιο',
-                placeholder: 'Προσθέστε ένα σχόλιο…',
-                submitLabel: 'Σχόλιο',
-                needsSubcategory: false
+    function loadResolveSubcategories(categoryId) {
+        var subcatSelect = document.getElementById('td-resolve-subcategory');
+        subcatSelect.disabled = true;
+        subcatSelect.innerHTML = '<option value="">Φόρτωση…</option>';
+
+        fetch('/api/subcategories?categoryId=' + encodeURIComponent(categoryId))
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function (subcategories) {
+                var active = subcategories.filter(function (sc) { return sc.active; });
+                var html;
+                if (active.length) {
+                    html = '<option value="">Επιλέξτε υποκατηγορία…</option>';
+                    active.forEach(function (sc) {
+                        html += '<option value="' + sc.id + '">' + escapeHtml(sc.name) + '</option>';
+                    });
+                } else {
+                    html = '<option value="">Δεν υπάρχουν διαθέσιμες υποκατηγορίες</option>';
+                }
+                subcatSelect.innerHTML = html;
+                subcatSelect.disabled = false;
+            })
+            .catch(function () {
+                subcatSelect.innerHTML = '<option value="">Αποτυχία φόρτωσης υποκατηγοριών</option>';
             });
+    }
+
+    function wireModalTabs() {
+        modalBody.querySelectorAll('.modal-tab').forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                activateTab(tab.getAttribute('data-tab-target'));
+            });
+        });
+    }
+
+    function activateTab(tabTarget) {
+        modalBody.querySelectorAll('.modal-tab').forEach(function (t) {
+            var isTarget = t.getAttribute('data-tab-target') === tabTarget;
+            t.classList.toggle('active', isTarget);
+            t.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+        });
+        modalBody.querySelectorAll('.modal-tab-panel').forEach(function (panel) {
+            panel.style.display = panel.id === tabTarget ? '' : 'none';
         });
     }
 
@@ -396,7 +571,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (isOpen) {
             html += '<div class="ticket-action-buttons ticket-action-buttons-center">';
-            html += '<button type="button" class="btn btn-primary" id="ticket-status-btn">🔄 Αλλαγή Κατάστασης</button>';
+            html += '<button type="button" class="btn btn-primary" id="ticket-resolve-btn">Επίλυση Ticket</button>';
             html += '</div>';
         } else {
             var isCancelled = ticket.status === 'CANCELLED';
@@ -418,8 +593,11 @@ document.addEventListener('DOMContentLoaded', function () {
         var isOpen = ticket.status === 'OPEN';
 
         if (isOpen) {
-            document.getElementById('ticket-status-btn').addEventListener('click', function () {
-                openStatusChangeModal(ticket);
+            document.getElementById('ticket-resolve-btn').addEventListener('click', function () {
+                activateTab('td-tab-info');
+                document.getElementById('resolution-view').style.display = 'none';
+                document.getElementById('td-resolve-form').style.display = 'flex';
+                document.getElementById('td-resolve-textarea').focus();
             });
         } else {
             document.getElementById('ticket-reopen-btn').addEventListener('click', function () {
@@ -472,10 +650,6 @@ document.addEventListener('DOMContentLoaded', function () {
         var labelEl = document.getElementById('action-modal-comment-label');
         var textarea = document.getElementById('action-modal-comment');
         var submitBtn = document.getElementById('action-modal-submit');
-        var statusGroup = document.getElementById('action-modal-status-group');
-        var statusSelect = document.getElementById('action-modal-status');
-        var subcatGroup = document.getElementById('action-modal-subcategory-group');
-        var subcatSelect = document.getElementById('action-modal-subcategory');
         var csrfInput = document.getElementById('action-modal-csrf');
         var sourceCsrf = document.querySelector('#create-ticket-modal input[name="_csrf"]');
 
@@ -484,119 +658,23 @@ document.addEventListener('DOMContentLoaded', function () {
         labelEl.textContent = config.label;
         textarea.value = '';
         textarea.placeholder = config.placeholder || '';
-        submitBtn.textContent = config.submitLabel || 'Επιβεβαίωση';
+        setSubmitLabel(config.submitLabel || 'Επιβεβαίωση');
         submitBtn.disabled = false;
         csrfInput.value = sourceCsrf ? sourceCsrf.value : '';
-
-        statusGroup.style.display = 'none';
-        statusSelect.onchange = null;
-
-        if (config.needsSubcategory) {
-            subcatGroup.style.display = '';
-            subcatSelect.required = true;
-            loadActionModalSubcategories(config.categoryId);
-        } else {
-            subcatGroup.style.display = 'none';
-            subcatSelect.required = false;
-            subcatSelect.innerHTML = '';
-        }
 
         actionModal.showModal();
         textarea.focus();
     }
 
-    // "Αλλαγή Κατάστασης" reuses the same confirmation dialog as the other ticket
-    // actions, but adds a status dropdown (default Επίλυση) that switches the
-    // target endpoint, labels, and subcategory requirement on the fly.
-    function openStatusChangeModal(ticket) {
-        var titleEl = document.getElementById('action-modal-title');
-        var statusGroup = document.getElementById('action-modal-status-group');
-        var statusSelect = document.getElementById('action-modal-status');
-        var csrfInput = document.getElementById('action-modal-csrf');
-        var sourceCsrf = document.querySelector('#create-ticket-modal input[name="_csrf"]');
-
-        titleEl.textContent = 'Αλλαγή Κατάστασης';
-        csrfInput.value = sourceCsrf ? sourceCsrf.value : '';
-        statusGroup.style.display = '';
-        statusSelect.value = 'resolve';
-
-        applyStatusChangeOption(ticket, statusSelect.value);
-        statusSelect.onchange = function () {
-            applyStatusChangeOption(ticket, statusSelect.value);
-        };
-
-        actionModal.showModal();
-        document.getElementById('action-modal-comment').focus();
-    }
-
-    function applyStatusChangeOption(ticket, status) {
-        var form = document.getElementById('action-modal-form');
-        var labelEl = document.getElementById('action-modal-comment-label');
-        var textarea = document.getElementById('action-modal-comment');
+    // The confirm button is always a fixed ✓ glyph (tick/x pattern for
+    // confirm/cancel); the actual action name goes into the tooltip instead.
+    function setSubmitLabel(label) {
         var submitBtn = document.getElementById('action-modal-submit');
-        var subcatGroup = document.getElementById('action-modal-subcategory-group');
-        var subcatSelect = document.getElementById('action-modal-subcategory');
-
-        textarea.value = '';
-        submitBtn.disabled = false;
-
-        if (status === 'cancel') {
-            form.setAttribute('action', '/tickets/' + ticket.id + '/cancel');
-            labelEl.textContent = 'Λόγος ακύρωσης';
-            textarea.placeholder = 'Περιγράψτε τον λόγο ακύρωσης…';
-            submitBtn.textContent = 'Ακύρωση Ticket';
-            subcatGroup.style.display = 'none';
-            subcatSelect.required = false;
-            subcatSelect.innerHTML = '';
-        } else {
-            form.setAttribute('action', '/tickets/' + ticket.id + '/resolve');
-            labelEl.textContent = 'Λύση';
-            textarea.placeholder = 'Περιγράψτε τη λύση…';
-            submitBtn.textContent = 'Επίλυση';
-            if (!ticket.subcategoryId) {
-                subcatGroup.style.display = '';
-                subcatSelect.required = true;
-                loadActionModalSubcategories(ticket.categoryId);
-            } else {
-                subcatGroup.style.display = 'none';
-                subcatSelect.required = false;
-                subcatSelect.innerHTML = '';
-            }
-        }
+        submitBtn.title = label;
+        submitBtn.setAttribute('aria-label', label);
     }
 
-    function loadActionModalSubcategories(categoryId) {
-        var subcatSelect = document.getElementById('action-modal-subcategory');
-        subcatSelect.disabled = true;
-        subcatSelect.innerHTML = '<option value="">Φόρτωση…</option>';
-
-        fetch('/api/subcategories?categoryId=' + encodeURIComponent(categoryId))
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error('HTTP ' + response.status);
-                }
-                return response.json();
-            })
-            .then(function (subcategories) {
-                var active = subcategories.filter(function (sc) { return sc.active; });
-                var html;
-                if (active.length) {
-                    html = '<option value="">Επιλέξτε υποκατηγορία…</option>';
-                    active.forEach(function (sc) {
-                        html += '<option value="' + sc.id + '">' + escapeHtml(sc.name) + '</option>';
-                    });
-                } else {
-                    html = '<option value="">Δεν υπάρχουν διαθέσιμες υποκατηγορίες</option>';
-                }
-                subcatSelect.innerHTML = html;
-                subcatSelect.disabled = false;
-            })
-            .catch(function () {
-                subcatSelect.innerHTML = '<option value="">Αποτυχία φόρτωσης υποκατηγοριών</option>';
-            });
-    }
-
-    function historyItemHtml(h, ticketId) {
+    function historyItemHtml(h) {
         var performer = escapeHtml(h.performedByUsername || 'Διαγραμμένος χρήστης');
         var assignee = escapeHtml(h.assignedToUsername || 'διαγραμμένο χρήστη');
         var dotClass = '';
@@ -607,25 +685,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 text = 'Δημιουργήθηκε από ' + performer;
                 break;
             case 'ASSIGNED':
-                text = performer + ' ανέθεσε το ticket σε ' + assignee + (h.commentText ? ' και σχολίασε:' : '.');
+                text = performer + ' ανέθεσε το ticket σε ' + assignee + '.';
                 break;
             case 'REASSIGNED':
-                text = performer + ' επανέθεσε το ticket σε ' + assignee + (h.commentText ? ' και σχολίασε:' : '.');
-                break;
-            case 'COMMENT_ADDED':
-                text = performer + ' σχολίασε:';
-                dotClass = 'dot-comment';
+                text = performer + ' επανέθεσε το ticket σε ' + assignee + '.';
                 break;
             case 'RESOLVED':
-                text = performer + ' επέλυσε το ticket' + (h.commentText ? ' με λύση:' : '.');
+                text = performer + ' επέλυσε το ticket.';
                 dotClass = 'dot-resolved';
                 break;
             case 'CANCELLED':
-                text = performer + ' ακύρωσε το ticket' + (h.commentText ? ' με λόγο:' : '.');
+                text = performer + ' ακύρωσε το ticket.';
                 dotClass = 'dot-cancelled';
                 break;
             case 'REOPENED':
-                text = performer + ' επανάνοιξε το ticket' + (h.commentText ? ' με λόγο:' : '.');
+                text = performer + ' επανάνοιξε το ticket.';
                 break;
             default:
                 text = performer + ' ενημέρωσε το ticket.';
@@ -634,39 +708,117 @@ document.addEventListener('DOMContentLoaded', function () {
         var itemHtml = '<div class="timeline-item">';
         itemHtml += '<div class="timeline-dot ' + dotClass + '"></div>';
         itemHtml += '<p class="timeline-text">' + text + '</p>';
-        if (h.commentText) {
-            var canEditComment = h.commentId && currentUserId && String(h.performedById) === currentUserId;
-            itemHtml += '<div class="timeline-quote-wrap" id="quote-view-' + h.commentId + '">';
-            itemHtml += '<p class="timeline-quote">“' + escapeHtml(h.commentText) + '”</p>';
-            itemHtml += '<button type="button" class="icon-btn attachment-toggle" data-comment-id="' + h.commentId + '" title="Επισύναψη αρχείου">📎</button>';
-            if (canEditComment) {
-                itemHtml += '<button type="button" class="icon-btn comment-edit-toggle" data-comment-id="' + h.commentId + '" title="Επεξεργασία σχολίου">✎</button>';
+        itemHtml += '<p class="timeline-time">' + formatDate(h.timestamp) + '</p>';
+        itemHtml += '</div>';
+        return itemHtml;
+    }
+
+    function composeCommentHtml(ticketId) {
+        var html = '<form id="td-comment-form" class="ticket-form comment-compose">';
+        html += '<div class="form-group">';
+        html += '<textarea name="commentText" placeholder="Γράψτε ένα σχόλιο…" required="required"></textarea>';
+        html += '</div>';
+        html += '<div class="ticket-action-buttons">';
+        html += '<button type="submit" class="btn btn-success">Υποβολή</button>';
+        html += '</div>';
+        html += '</form>';
+        return html;
+    }
+
+    function wireCommentCompose(ticketId) {
+        var form = document.getElementById('td-comment-form');
+        if (!form) {
+            return;
+        }
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var textarea = form.querySelector('textarea[name="commentText"]');
+            var commentText = textarea.value.trim();
+            if (!commentText) {
+                return;
             }
+            var submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+
+            var csrfInput = document.querySelector('#create-ticket-modal input[name="_csrf"]');
+            var headers = { 'Content-Type': 'application/json' };
+            if (csrfInput) {
+                headers['X-CSRF-TOKEN'] = csrfInput.value;
+            }
+
+            fetch('/api/tickets/' + ticketId + '/comments', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ commentText: commentText })
+            }).then(function (response) {
+                if (!response.ok) {
+                    return response.json().catch(function () {
+                        return {};
+                    }).then(function (body) {
+                        throw new Error(body.error || Object.values(body)[0] || ('HTTP ' + response.status));
+                    });
+                }
+                return response.json();
+            }).then(function () {
+                openTicketModal(ticketId, 'td-tab-comments');
+            }).catch(function (err) {
+                submitBtn.disabled = false;
+                window.showError('Αποτυχία προσθήκης σχολίου: ' + err.message);
+            });
+        });
+    }
+
+    function commentTabItemHtml(h, ticketId) {
+        var performer = escapeHtml(h.performedByUsername || 'Διαγραμμένος χρήστης');
+        var canEditComment = h.commentId && currentUserId && String(h.performedById) === currentUserId;
+
+        var itemHtml = '<div class="timeline-item">';
+        itemHtml += '<div class="timeline-dot dot-comment"></div>';
+        itemHtml += '<p class="timeline-text">' + performer + ' σχολίασε:</p>';
+        itemHtml += '<div class="timeline-quote-wrap" id="ct-quote-view-' + h.commentId + '">';
+        itemHtml += '<p class="timeline-quote">“' + escapeHtml(h.commentText) + '”</p>';
+        if (canEditComment) {
+            itemHtml += '<button type="button" class="icon-btn comment-tab-edit-toggle" data-comment-id="' + h.commentId + '" title="Επεξεργασία σχολίου">✎</button>';
+        }
+        itemHtml += '</div>';
+        if (canEditComment) {
+            var csrfInputForComment = document.querySelector('#create-ticket-modal input[name="_csrf"]');
+            var commentCsrfToken = csrfInputForComment ? csrfInputForComment.value : '';
+            itemHtml += '<form id="ct-comment-edit-' + h.commentId + '" class="comment-edit-form" method="post" ' +
+                'action="/tickets/' + ticketId + '/comments/' + h.commentId + '/edit" style="display:none;">';
+            itemHtml += '<input type="hidden" name="_csrf" value="' + escapeHtml(commentCsrfToken) + '">';
+            itemHtml += '<textarea name="text" required="required">' + escapeHtml(h.commentText) + '</textarea>';
+            itemHtml += '<div class="ticket-action-buttons">';
+            itemHtml += '<button type="button" class="btn btn-sm comment-tab-edit-cancel" data-comment-id="' + h.commentId + '">Άκυρο</button>';
+            itemHtml += '<button type="submit" class="btn btn-primary btn-sm">Αποθήκευση</button>';
             itemHtml += '</div>';
-            itemHtml += '<input type="file" class="attachment-input" data-comment-id="' + h.commentId + '" hidden>';
-            itemHtml += attachmentsHtml(h.attachments);
-            if (canEditComment) {
-                var csrfInputForComment = document.querySelector('#create-ticket-modal input[name="_csrf"]');
-                var commentCsrfToken = csrfInputForComment ? csrfInputForComment.value : '';
-                itemHtml += '<form id="comment-edit-' + h.commentId + '" class="comment-edit-form" method="post" ' +
-                    'action="/tickets/' + ticketId + '/comments/' + h.commentId + '/edit" style="display:none;">';
-                itemHtml += '<input type="hidden" name="_csrf" value="' + escapeHtml(commentCsrfToken) + '">';
-                itemHtml += '<textarea name="text" required="required">' + escapeHtml(h.commentText) + '</textarea>';
-                itemHtml += '<div class="ticket-action-buttons">';
-                itemHtml += '<button type="button" class="btn btn-sm comment-edit-cancel" data-comment-id="' + h.commentId + '">Άκυρο</button>';
-                itemHtml += '<button type="submit" class="btn btn-primary btn-sm">Αποθήκευση</button>';
-                itemHtml += '</div>';
-                itemHtml += '</form>';
-            }
+            itemHtml += '</form>';
         }
         itemHtml += '<p class="timeline-time">' + formatDate(h.timestamp) + '</p>';
         itemHtml += '</div>';
         return itemHtml;
     }
 
+    function wireCommentTabEdits() {
+        document.querySelectorAll('.comment-tab-edit-toggle').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var commentId = btn.getAttribute('data-comment-id');
+                document.getElementById('ct-quote-view-' + commentId).style.display = 'none';
+                document.getElementById('ct-comment-edit-' + commentId).style.display = 'flex';
+            });
+        });
+        document.querySelectorAll('.comment-tab-edit-cancel').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var commentId = btn.getAttribute('data-comment-id');
+                document.getElementById('ct-comment-edit-' + commentId).style.display = 'none';
+                document.getElementById('ct-quote-view-' + commentId).style.display = 'flex';
+            });
+        });
+    }
+
     function attachmentsHtml(attachments) {
         if (!attachments || !attachments.length) {
-            return '';
+            return '<p class="field-label">Δεν υπάρχουν συνημμένα.</p>';
         }
         var html = '<div class="attachment-list">';
         attachments.forEach(function (a) {
@@ -683,47 +835,47 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function wireAttachments(ticketId) {
-        document.querySelectorAll('.attachment-toggle').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var commentId = btn.getAttribute('data-comment-id');
-                document.querySelector('.attachment-input[data-comment-id="' + commentId + '"]').click();
-            });
+        var toggleBtn = document.getElementById('td-attachment-toggle');
+        var input = document.getElementById('td-attachment-input');
+        if (!toggleBtn || !input) {
+            return;
+        }
+
+        toggleBtn.addEventListener('click', function () {
+            input.click();
         });
 
-        document.querySelectorAll('.attachment-input').forEach(function (input) {
-            input.addEventListener('change', function () {
-                if (!input.files || !input.files.length) {
-                    return;
-                }
-                var commentId = input.getAttribute('data-comment-id');
-                var formData = new FormData();
-                formData.append('file', input.files[0]);
+        input.addEventListener('change', function () {
+            if (!input.files || !input.files.length) {
+                return;
+            }
+            var formData = new FormData();
+            formData.append('file', input.files[0]);
 
-                var csrfInput = document.querySelector('#create-ticket-modal input[name="_csrf"]');
-                var headers = {};
-                if (csrfInput) {
-                    formData.append('_csrf', csrfInput.value);
-                    headers['X-CSRF-TOKEN'] = csrfInput.value;
-                }
+            var csrfInput = document.querySelector('#create-ticket-modal input[name="_csrf"]');
+            var headers = {};
+            if (csrfInput) {
+                formData.append('_csrf', csrfInput.value);
+                headers['X-CSRF-TOKEN'] = csrfInput.value;
+            }
 
-                fetch('/api/comments/' + commentId + '/attachments', {
-                    method: 'POST',
-                    headers: headers,
-                    body: formData
-                }).then(function (response) {
-                    if (!response.ok) {
-                        return response.json().catch(function () {
-                            return {};
-                        }).then(function (body) {
-                            throw new Error(body.error || Object.values(body)[0] || ('HTTP ' + response.status));
-                        });
-                    }
-                    return response.json();
-                }).then(function () {
-                    openTicketModal(ticketId);
-                }).catch(function (err) {
-                    window.showError('Αποτυχία επισύναψης αρχείου: ' + err.message);
-                });
+            fetch('/api/tickets/' + ticketId + '/attachments', {
+                method: 'POST',
+                headers: headers,
+                body: formData
+            }).then(function (response) {
+                if (!response.ok) {
+                    return response.json().catch(function () {
+                        return {};
+                    }).then(function (body) {
+                        throw new Error(body.error || Object.values(body)[0] || ('HTTP ' + response.status));
+                    });
+                }
+                return response.json();
+            }).then(function () {
+                openTicketModal(ticketId);
+            }).catch(function (err) {
+                window.showError('Αποτυχία επισύναψης αρχείου: ' + err.message);
             });
         });
 
@@ -757,30 +909,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
         });
-    }
-
-    function wireCommentEdits() {
-        document.querySelectorAll('.comment-edit-toggle').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var commentId = btn.getAttribute('data-comment-id');
-                document.getElementById('quote-view-' + commentId).style.display = 'none';
-                document.getElementById('comment-edit-' + commentId).style.display = 'flex';
-            });
-        });
-        document.querySelectorAll('.comment-edit-cancel').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var commentId = btn.getAttribute('data-comment-id');
-                document.getElementById('comment-edit-' + commentId).style.display = 'none';
-                document.getElementById('quote-view-' + commentId).style.display = 'flex';
-            });
-        });
-    }
-
-    function textField(label, id, value) {
-        return '<div class="form-group">' +
-            '<label for="' + id + '">' + escapeHtml(label) + '</label>' +
-            '<input type="text" id="' + id + '" value="' + escapeHtml(value || '') + '" disabled="disabled">' +
-            '</div>';
     }
 
     function formatRelativeTime(isoString) {
@@ -856,6 +984,39 @@ document.addEventListener('DOMContentLoaded', function () {
             var cleanCreateUrl = window.location.pathname + window.location.hash;
             window.history.replaceState(null, '', cleanCreateUrl);
         }
+
+        wireArrowFieldNavigation(createModal.querySelector('form'));
+    }
+
+    // Shift+↓/↑ jumps focus to the next/previous field, following the visual
+    // (top-to-bottom) order of the form — including textareas.
+    function wireArrowFieldNavigation(form) {
+        if (!form) {
+            return;
+        }
+        form.addEventListener('keydown', function (e) {
+            if (!e.shiftKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) {
+                return;
+            }
+            var target = e.target;
+
+            var fields = Array.prototype.slice.call(form.querySelectorAll('input, select, textarea')).filter(function (el) {
+                return el.type !== 'hidden' && !el.disabled && el.offsetParent !== null;
+            });
+            var idx = fields.indexOf(target);
+            if (idx === -1) {
+                return;
+            }
+            var nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+            if (nextIdx < 0 || nextIdx >= fields.length) {
+                return;
+            }
+            e.preventDefault();
+            fields[nextIdx].focus();
+            if (typeof fields[nextIdx].select === 'function') {
+                fields[nextIdx].select();
+            }
+        });
     }
 
     var categorySelect = document.getElementById('ct-category');
@@ -955,6 +1116,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     input.addEventListener('keydown', function (e) {
+        if (e.shiftKey) {
+            return;
+        }
         var items = optionsList.querySelectorAll('li');
         if (!items.length || optionsList.hidden) {
             return;

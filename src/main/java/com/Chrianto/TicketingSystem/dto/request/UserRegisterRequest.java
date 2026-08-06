@@ -17,6 +17,10 @@ public class UserRegisterRequest {
 
     private String phoneNumber;
 
+    private String firstName;
+
+    private String lastName;
+
     @NotNull(message = "Ο ρόλος είναι υποχρεωτικός")
     private UserRole role;
 }

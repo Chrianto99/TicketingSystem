@@ -12,4 +12,8 @@ public class UserProfileUpdateRequest {
 
     @NotBlank(message = "Ο αριθμός τηλεφώνου είναι υποχρεωτικός")
     private String phoneNumber;
+
+    private String firstName;
+
+    private String lastName;
 }

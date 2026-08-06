@@ -18,7 +18,12 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    var editableFields = [document.getElementById('p-email'), document.getElementById('p-phone')];
+    var editableFields = [
+        document.getElementById('p-first-name'),
+        document.getElementById('p-last-name'),
+        document.getElementById('p-email'),
+        document.getElementById('p-phone')
+    ];
 
     editBtn.addEventListener('click', function () {
         editableFields.forEach(function (field) {

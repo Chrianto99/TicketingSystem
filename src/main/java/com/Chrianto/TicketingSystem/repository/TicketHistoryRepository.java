@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface TicketHistoryRepository extends JpaRepository<TicketHistory, Long> {
-    List<TicketHistory> findByTicketIdOrderByTimestampAsc(Long ticketId);
+    List<TicketHistory> findByTicketIdOrderByTimestampAscIdAsc(Long ticketId);
 
     void deleteByTicketId(Long ticketId);
 

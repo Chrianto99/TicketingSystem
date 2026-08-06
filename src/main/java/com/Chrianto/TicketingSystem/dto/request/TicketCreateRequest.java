@@ -27,13 +27,14 @@ public class TicketCreateRequest {
     )
     private String ipAddress;
 
-    private String description;
+    private String summary;
 
     @NotNull(message = "Η προτεραιότητα είναι υποχρεωτική")
     private TicketPriority priority;
 
-    @NotBlank(message = "Το σχόλιο είναι υποχρεωτικό")
-    private String commentText;
+    @NotBlank(message = "Η περιγραφή είναι υποχρεωτική")
+    private String description;
 
+    private String resolution;
 
 }

@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
 
-    List<Attachment> findByComment_Ticket_Id(Long ticketId);
+    List<Attachment> findByTicketId(Long ticketId);
 
     @Modifying
     @Query("UPDATE Attachment a SET a.uploadedBy = null WHERE a.uploadedBy.id = :userId")

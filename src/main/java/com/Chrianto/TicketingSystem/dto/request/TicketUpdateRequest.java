@@ -18,6 +18,8 @@ public class TicketUpdateRequest {
 
     private String phoneNumber;
 
+    private String summary;
+
     private String description;
 
     @NotNull(message = "Η προτεραιότητα είναι υποχρεωτική")

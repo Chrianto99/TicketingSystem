@@ -6,8 +6,10 @@ import com.Chrianto.TicketingSystem.entity.enums.UserRole;
 import com.Chrianto.TicketingSystem.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import com.Chrianto.TicketingSystem.entity.User;
 import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -97,5 +99,15 @@ public class UserViewController {
     public String reactivateUser(@PathVariable Long userId) {
         userService.reactivateUser(userId);
         return "redirect:/users?reactivated=true";
+    }
+
+    @PostMapping("/{userId}/toggle-admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String toggleAdmin(@PathVariable Long userId, @AuthenticationPrincipal User currentUser) {
+        if (userId.equals(currentUser.getId())) {
+            return "redirect:/users?roleChangeError=true";
+        }
+        userService.toggleAdminRole(userId);
+        return "redirect:/users?roleChanged=true";
     }
 }

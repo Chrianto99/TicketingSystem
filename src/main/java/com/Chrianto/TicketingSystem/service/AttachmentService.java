@@ -3,11 +3,11 @@ package com.Chrianto.TicketingSystem.service;
 import com.Chrianto.TicketingSystem.dto.response.AttachmentDownload;
 import com.Chrianto.TicketingSystem.dto.response.AttachmentResponse;
 import com.Chrianto.TicketingSystem.entity.Attachment;
-import com.Chrianto.TicketingSystem.entity.Comment;
+import com.Chrianto.TicketingSystem.entity.Ticket;
 import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.exception.EntityNotFoundException;
 import com.Chrianto.TicketingSystem.repository.AttachmentRepository;
-import com.Chrianto.TicketingSystem.repository.CommentRepository;
+import com.Chrianto.TicketingSystem.repository.TicketRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,7 +32,7 @@ import java.util.UUID;
 public class AttachmentService {
 
     private final AttachmentRepository attachmentRepository;
-    private final CommentRepository commentRepository;
+    private final TicketRepository ticketRepository;
 
     @Value("${app.attachments.dir:uploads}")
     private String uploadDir;
@@ -49,23 +49,24 @@ public class AttachmentService {
         }
     }
 
-    public AttachmentResponse uploadAttachment(Long commentId, MultipartFile file, User currentUser) {
+    public AttachmentResponse uploadAttachment(Long ticketId, MultipartFile file, User currentUser) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Το αρχείο δεν πρέπει να είναι κενό");
         }
 
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε σχόλιο με id: " + commentId));
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
 
         String originalName = StringUtils.cleanPath(
                 file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()
                         ? "file"
                         : file.getOriginalFilename());
         String storedName = UUID.randomUUID().toString();
-        String relativePath = comment.getId() + "/" + storedName;
+        String storageDirName = "ticket-" + ticket.getId();
+        String relativePath = storageDirName + "/" + storedName;
 
         try {
-            Path targetDir = storageRoot.resolve(String.valueOf(comment.getId()));
+            Path targetDir = storageRoot.resolve(storageDirName);
             Files.createDirectories(targetDir);
             file.transferTo(targetDir.resolve(storedName));
         } catch (IOException e) {
@@ -73,7 +74,7 @@ public class AttachmentService {
         }
 
         Attachment attachment = new Attachment();
-        attachment.setComment(comment);
+        attachment.setTicket(ticket);
         attachment.setUploadedBy(currentUser);
         attachment.setFileName(originalName);
         attachment.setFilePath(relativePath);
@@ -83,6 +84,12 @@ public class AttachmentService {
         attachment = attachmentRepository.save(attachment);
 
         return toResponse(attachment);
+    }
+
+    public List<AttachmentResponse> getAttachmentsForTicket(Long ticketId) {
+        return attachmentRepository.findByTicketId(ticketId).stream()
+                .map(AttachmentService::toResponse)
+                .toList();
     }
 
     public void deleteAttachment(Long attachmentId, User currentUser) {
@@ -120,7 +127,7 @@ public class AttachmentService {
 
     @Transactional
     public void deleteAttachmentsForTicket(Long ticketId) {
-        List<Attachment> attachments = attachmentRepository.findByComment_Ticket_Id(ticketId);
+        List<Attachment> attachments = attachmentRepository.findByTicketId(ticketId);
         attachments.forEach(this::deleteFileQuietly);
         attachmentRepository.deleteAll(attachments);
     }

@@ -10,6 +10,7 @@ import com.Chrianto.TicketingSystem.entity.*;
 import com.Chrianto.TicketingSystem.entity.enums.TicketAction;
 import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
 import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
+import com.Chrianto.TicketingSystem.entity.enums.UserRole;
 import com.Chrianto.TicketingSystem.exception.EntityNotFoundException;
 import com.Chrianto.TicketingSystem.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,11 @@ public class TicketService {
                 : null;
         validateSubcategoryBelongsToCategory(category, subcategory);
 
+        boolean autoResolve = req.getResolution() != null && !req.getResolution().isBlank();
+        if (autoResolve && subcategory == null) {
+            throw new IllegalArgumentException("Απαιτείται υποκατηγορία για την επίλυση ενός ticket");
+        }
+
         Ticket ticket = new Ticket();
         ticket.setCreator(creator);
         ticket.setAssignedUser(assignee);
@@ -64,19 +70,23 @@ public class TicketService {
         ticket.setCallerName(req.getCallerName());
         ticket.setPhoneNumber(req.getPhoneNumber());
         ticket.setIpAddress(req.getIpAddress());
+        ticket.setSummary(req.getSummary());
         ticket.setDescription(req.getDescription());
-        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setStatus(autoResolve ? TicketStatus.RESOLVED : TicketStatus.OPEN);
         ticket.setPriority(req.getPriority());
         ticket.setCreatedAt(LocalDateTime.now());
         ticket.setUpdatedAt(LocalDateTime.now());
+        if (autoResolve) {
+            ticket.setResolution(req.getResolution());
+        }
 
         ticket = ticketRepository.save(ticket);
 
-        Comment comment = postComment(ticket, creator, req.getCommentText());
-
         ticketHistoryService.logHistory(ticket, creator, TicketAction.CREATED, null, null);
-        ticketHistoryService.logHistory(ticket, creator, TicketAction.ASSIGNED, assignee, comment);
-
+        ticketHistoryService.logHistory(ticket, creator, TicketAction.ASSIGNED, assignee, null);
+        if (autoResolve) {
+            ticketHistoryService.logHistory(ticket, creator, TicketAction.RESOLVED, null, null);
+        }
 
         return toResponse(ticket);
     }
@@ -98,7 +108,7 @@ public class TicketService {
                 : null;
         validateSubcategoryBelongsToCategory(category, subcategory);
 
-        if (!ticket.getCreator().getId().equals(performedBy.getId())) {
+        if (performedBy.getRole() != UserRole.ADMIN && !ticket.getCreator().getId().equals(performedBy.getId())) {
             throw new IllegalStateException("Μόνο ο δημιουργός του ticket μπορεί να επεξεργαστεί αυτές τις πληροφορίες");
         }
 
@@ -109,6 +119,7 @@ public class TicketService {
         ticket.setCallerName(req.getCallerName());
         ticket.setPhoneNumber(req.getPhoneNumber());
         ticket.setIpAddress(req.getIpAddress());
+        ticket.setSummary(req.getSummary());
         ticket.setDescription(req.getDescription());
         ticket.setPriority(req.getPriority());
         ticket.setUpdatedAt(LocalDateTime.now());
@@ -150,14 +161,13 @@ public class TicketService {
             throw new IllegalArgumentException("Απαιτείται υποκατηγορία για την επίλυση ενός ticket");
         }
 
-        Comment comment = postComment(ticket, performedBy, req.getCommentText());
-
+        ticket.setResolution(req.getCommentText());
         ticket.setStatus(TicketStatus.RESOLVED);
         ticket.setLastModifiedBy(performedBy);
         ticket.setUpdatedAt(LocalDateTime.now());
         ticket = ticketRepository.save(ticket);
 
-        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.RESOLVED, null, comment);
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.RESOLVED, null, null);
 
         return toResponse(ticket);
     }
@@ -215,7 +225,9 @@ public class TicketService {
             throw new IllegalStateException("Το ticket είναι ήδη " + ticket.getStatus().getDisplayName());
         }
 
-        Comment comment = postComment(ticket, performedBy, req.getCommentText());
+        Comment comment = req.getCommentText() != null && !req.getCommentText().isBlank()
+                ? postComment(ticket, performedBy, req.getCommentText())
+                : null;
 
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setLastModifiedBy(performedBy);
@@ -320,7 +332,9 @@ public class TicketService {
                 .callerName(t.getCallerName())
                 .phoneNumber(t.getPhoneNumber())
                 .ipAddress(t.getIpAddress())
+                .summary(t.getSummary())
                 .description(t.getDescription())
+                .resolution(t.getResolution())
                 .createdAt(t.getCreatedAt())
                 .updatedAt(t.getUpdatedAt())
                 .build();

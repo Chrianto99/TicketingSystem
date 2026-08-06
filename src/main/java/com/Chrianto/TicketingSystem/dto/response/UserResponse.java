@@ -11,6 +11,8 @@ public class UserResponse {
     private String username;
     private String email;
     private String phoneNumber;
+    private String firstName;
+    private String lastName;
     private UserRole role;
     private boolean active;
     private LocalDateTime scheduledDeletionAt;

@@ -31,6 +31,10 @@ public class User implements UserDetails {
 
     private String phoneNumber;
 
+    private String firstName;
+
+    private String lastName;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;

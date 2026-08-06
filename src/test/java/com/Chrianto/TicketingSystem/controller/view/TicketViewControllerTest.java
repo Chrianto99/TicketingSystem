@@ -116,13 +116,13 @@ class TicketViewControllerTest {
                         .with(user(currentUser))
                         .with(csrf())
                         .param("assignedUserId", "1")
-                        .param("description", "Printer is on fire")
+                        .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
                         .param("departmentId", "1")
                         .param("categoryId", "1")
                         .param("priority", "HIGH")
-                        .param("commentText", "Initial report"))
+                        .param("description", "Initial report"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/tickets?openTicket=42"));
 
@@ -135,13 +135,13 @@ class TicketViewControllerTest {
                         .with(user(currentUser))
                         .with(csrf())
                         .param("assignedUserId", "1")
-                        .param("description", "")
+                        .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
                         .param("departmentId", "1")
                         .param("categoryId", "1")
                         .param("priority", "HIGH")
-                        .param("commentText", "Initial report"))
+                        .param("description", ""))
                 .andExpect(status().isOk())
                 .andExpect(view().name("tickets/list"))
                 .andExpect(model().attributeHasFieldErrors("ticketCreateRequest", "description"));
@@ -150,18 +150,63 @@ class TicketViewControllerTest {
     }
 
     @Test
-    void createTicket_missingAssignedUser_reRendersFormWithFieldErrorAndDoesNotCreate() throws Exception {
+    void createTicket_withResolutionButNoSubcategory_reRendersFormWithFieldErrorAndDoesNotCreate() throws Exception {
         mockMvc.perform(post("/tickets")
                         .with(user(currentUser))
                         .with(csrf())
-                        // assignedUserId intentionally omitted
-                        .param("description", "Printer is on fire")
+                        .param("assignedUserId", "1")
+                        .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
                         .param("departmentId", "1")
                         .param("categoryId", "1")
                         .param("priority", "HIGH")
-                        .param("commentText", "Initial report"))
+                        .param("description", "Initial report")
+                        .param("resolution", "Replaced the toner cartridge"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("tickets/list"))
+                .andExpect(model().attributeHasFieldErrors("ticketCreateRequest", "subcategoryId"));
+
+        verify(ticketService, never()).createTicket(any(), any());
+    }
+
+    @Test
+    void createTicket_withResolutionAndSubcategory_createsTicketAndRedirectsToDetail() throws Exception {
+        TicketResponse response = TicketResponse.builder().id(43L).build();
+        when(ticketService.createTicket(any(TicketCreateRequest.class), eq(currentUser))).thenReturn(response);
+
+        mockMvc.perform(post("/tickets")
+                        .with(user(currentUser))
+                        .with(csrf())
+                        .param("assignedUserId", "1")
+                        .param("summary", "Printer is on fire")
+                        .param("callerName", "Jane Doe")
+                        .param("phoneNumber", "6912345678")
+                        .param("departmentId", "1")
+                        .param("categoryId", "1")
+                        .param("subcategoryId", "2")
+                        .param("priority", "HIGH")
+                        .param("description", "Initial report")
+                        .param("resolution", "Replaced the toner cartridge"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/tickets?openTicket=43"));
+
+        verify(ticketService).createTicket(any(TicketCreateRequest.class), eq(currentUser));
+    }
+
+    @Test
+    void createTicket_missingAssignedUser_reRendersFormWithFieldErrorAndDoesNotCreate() throws Exception {
+        mockMvc.perform(post("/tickets")
+                        .with(user(currentUser))
+                        .with(csrf())
+                        // assignedUserId intentionally omitted
+                        .param("summary", "Printer is on fire")
+                        .param("callerName", "Jane Doe")
+                        .param("phoneNumber", "6912345678")
+                        .param("departmentId", "1")
+                        .param("categoryId", "1")
+                        .param("priority", "HIGH")
+                        .param("description", "Initial report"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("tickets/list"))
                 .andExpect(model().attributeHasFieldErrors("ticketCreateRequest", "assignedUserId"));
@@ -175,13 +220,13 @@ class TicketViewControllerTest {
                         .with(user(currentUser))
                         .with(csrf())
                         .param("assignedUserId", "1")
-                        .param("description", "Printer is on fire")
+                        .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
                         .param("departmentId", "1")
                         .param("categoryId", "1")
                         .param("priority", "HIGH")
-                        .param("commentText", "Initial report")
+                        .param("description", "Initial report")
                         .param("ipAddress", "not-an-ip"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("tickets/list"))
@@ -199,13 +244,13 @@ class TicketViewControllerTest {
                         .with(user(currentUser))
                         .with(csrf())
                         .param("assignedUserId", "1")
-                        .param("description", "Printer is on fire")
+                        .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
                         .param("departmentId", "1")
                         .param("categoryId", "1")
                         .param("priority", "HIGH")
-                        .param("commentText", "Initial report")
+                        .param("description", "Initial report")
                         .param("ipAddress", ""))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/tickets?openTicket=7"));
@@ -218,13 +263,13 @@ class TicketViewControllerTest {
         mockMvc.perform(post("/tickets")
                         .with(csrf())
                         .param("assignedUserId", "1")
-                        .param("description", "Printer is on fire")
+                        .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
                         .param("departmentId", "1")
                         .param("categoryId", "1")
                         .param("priority", "HIGH")
-                        .param("commentText", "Initial report"))
+                        .param("description", "Initial report"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/login"));
 
@@ -236,13 +281,13 @@ class TicketViewControllerTest {
         mockMvc.perform(post("/tickets")
                         .with(user(currentUser))
                         .param("assignedUserId", "1")
-                        .param("description", "Printer is on fire")
+                        .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
                         .param("departmentId", "1")
                         .param("categoryId", "1")
                         .param("priority", "HIGH")
-                        .param("commentText", "Initial report"))
+                        .param("description", "Initial report"))
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(ticketService);
@@ -386,16 +431,19 @@ class TicketViewControllerTest {
     }
 
     @Test
-    void reassignTicket_withBlankComment_redirectsBackToTicketWithoutReassigning() throws Exception {
+    void reassignTicket_withBlankComment_reassignsAndRedirectsToList() throws Exception {
+        when(ticketService.reassignTicket(eq(5L), any(TicketReassignRequest.class), eq(currentUser)))
+                .thenReturn(TicketResponse.builder().id(5L).build());
+
         mockMvc.perform(post("/tickets/5/reassign")
                         .with(user(currentUser))
                         .with(csrf())
                         .param("assignedTo", "2")
                         .param("commentText", ""))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/tickets?openTicket=5"));
+                .andExpect(redirectedUrl("/tickets"));
 
-        verify(ticketService, never()).reassignTicket(any(), any(), any());
+        verify(ticketService).reassignTicket(eq(5L), any(TicketReassignRequest.class), eq(currentUser));
     }
 
     @Test

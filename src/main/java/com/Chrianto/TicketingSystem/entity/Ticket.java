@@ -45,8 +45,15 @@ public class Ticket {
 
     private String ipAddress;
 
-    @Column(length = 2000)
+    // physical column stays "description" so existing summary text isn't orphaned by the rename
+    @Column(name = "description", length = 2000)
+    private String summary;
+
+    @Column(name = "details", length = 2000)
     private String description;
+
+    @Column(length = 2000)
+    private String resolution;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

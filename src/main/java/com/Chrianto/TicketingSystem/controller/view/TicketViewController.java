@@ -77,13 +77,15 @@ public class TicketViewController {
                                 @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
                                 @AuthenticationPrincipal User currentUser,
                                 Model model) {
+        if (req.getResolution() != null && !req.getResolution().isBlank() && req.getSubcategoryId() == null) {
+            bindingResult.rejectValue("subcategoryId", "resolution.requiresSubcategory",
+                    "Απαιτείται υποκατηγορία για την επίλυση ενός ticket");
+        }
         if (bindingResult.hasErrors()) {
             populateListData(model, resolveStatusFilter(status), priority, departmentId, categoryId, resolveScopeFilter(scope), description, currentUser, pageable);
             populateCreateFormData(model, currentUser);
             return "tickets/list";
         }
-        // "action" distinguishes "Open Ticket" vs "Open and Resolve" — both currently just create
-        // the ticket; the differentiated behavior for "open-resolve" is still to be defined.
         var created = ticketService.createTicket(req, currentUser);
         return "redirect:/tickets?openTicket=" + created.getId();
     }
@@ -215,10 +217,9 @@ public class TicketViewController {
 
     private void populateListData(Model model, TicketStatus status, TicketPriority priority, Long departmentId,
                                    Long categoryId, String scope, String description, User currentUser, Pageable pageable) {
-        Long createdByUserId = "created".equals(scope) ? currentUser.getId() : null;
         Long assignedToUserId = "assigned".equals(scope) ? currentUser.getId() : null;
         model.addAttribute("ticketPage", ticketService.getAllTickets(status, priority, departmentId, categoryId,
-                createdByUserId, assignedToUserId, description, pageable));
+                null, assignedToUserId, description, pageable));
         model.addAttribute("description", description);
         model.addAttribute("status", status);
         // status/scope are null here when the filter means "show everything" (needed for the

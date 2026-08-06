@@ -13,8 +13,8 @@ public class Attachment {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "comment_id", nullable = false)
-    private Comment comment;
+    @JoinColumn(name = "ticket_id", nullable = false)
+    private Ticket ticket;
 
     @ManyToOne
     @JoinColumn(name = "uploaded_by_id")

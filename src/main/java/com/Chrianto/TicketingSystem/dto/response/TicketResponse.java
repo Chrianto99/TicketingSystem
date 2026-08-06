@@ -24,7 +24,9 @@ public class TicketResponse {
     private String callerName;
     private String phoneNumber;
     private String ipAddress;
+    private String summary;
     private String description;
+    private String resolution;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

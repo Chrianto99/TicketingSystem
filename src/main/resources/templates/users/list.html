@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <title>Χρήστες</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="icon" type="image/png" th:href="@{/img/favicon.png}">
 </head>
-<body>
+<body th:attr="data-current-user-id=${#authentication.principal.id}">
 <div th:replace="~{fragments/nav :: nav}"></div>
 <div th:replace="~{fragments/nav :: modals}"></div>
 
@@ -23,6 +24,8 @@
     <p th:if="${param.passwordReset != null}" class="success-banner">Ο κωδικός επαναφέρθηκε σε <strong>qwerty123</strong>.</p>
     <p th:if="${param.deactivated != null}" class="success-banner">Ο χρήστης απενεργοποιήθηκε. Θα διαγραφεί οριστικά σε 7 ημέρες αν δεν επανενεργοποιηθεί.</p>
     <p th:if="${param.reactivated != null}" class="success-banner">Ο χρήστης επανενεργοποιήθηκε.</p>
+    <p th:if="${param.roleChanged != null}" class="success-banner">Ο ρόλος του χρήστη ενημερώθηκε.</p>
+    <p th:if="${param.roleChangeError != null}" class="error-banner">Δεν μπορείτε να αλλάξετε τον δικό σας ρόλο.</p>
 
     <table class="entity-table">
         <thead>
@@ -38,8 +41,12 @@
         <tr class="entity-card ticket-row"
             th:classappend="${!u.active} ? 'entity-card-inactive' : _"
             th:each="u : ${users}"
-            th:attr="data-user-id=${u.id},data-username=${u.username},data-email=${u.email},data-phone=${u.phoneNumber},data-role=${u.role},data-active=${u.active},data-scheduled-deletion=${u.scheduledDeletionAt}">
-            <td class="entity-name" th:text="${u.username}"></td>
+            th:attr="data-user-id=${u.id},data-username=${u.username},data-email=${u.email},data-phone=${u.phoneNumber},data-role=${u.role},data-active=${u.active},data-scheduled-deletion=${u.scheduledDeletionAt},data-first-name=${u.firstName},data-last-name=${u.lastName}">
+            <td class="entity-name">
+                <span th:text="${u.username}"></span>
+                <span class="entity-name-full" th:if="${u.firstName != null or u.lastName != null}"
+                      th:text="${(u.firstName ?: '') + ' ' + (u.lastName ?: '')}"></span>
+            </td>
             <td><span class="badge" th:classappend="'role-' + ${u.role}" th:text="${u.role.displayName}"></span></td>
             <td>
                 <span class="badge entity-status-badge status-active" th:if="${u.active}">Ενεργός</span>
@@ -74,6 +81,10 @@
         </div>
     </div>
     <div class="modal-body ticket-form">
+        <div class="field-row" id="user-modal-name-row" hidden>
+            <span class="field-label">Ονοματεπώνυμο</span>
+            <span id="user-modal-name"></span>
+        </div>
         <div class="field-row">
             <span class="field-label">Email</span>
             <span id="user-modal-email"></span>
@@ -103,6 +114,11 @@
                     <input type="hidden" name="_csrf" id="user-modal-reactivate-csrf">
                     <button type="submit" class="entity-menu-action">Επανενεργοποίηση</button>
                 </form>
+                <form id="user-modal-toggle-admin-form" method="post" action="#" data-confirm="">
+                    <input type="hidden" name="_csrf" id="user-modal-toggle-admin-csrf">
+                    <button type="submit" class="entity-menu-action" id="user-modal-toggle-admin-btn"></button>
+                </form>
+                <div class="entity-menu-divider"></div>
                 <form id="user-modal-delete-form" method="post" action="#" data-confirm="Απενεργοποίηση αυτού του χρήστη; Θα διαγραφεί οριστικά σε 7 ημέρες.">
                     <input type="hidden" name="_csrf" id="user-modal-delete-csrf">
                     <button type="submit" class="entity-menu-action entity-menu-action-danger">Διαγραφή Χρήστη</button>

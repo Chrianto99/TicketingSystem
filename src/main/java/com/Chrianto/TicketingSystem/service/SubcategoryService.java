@@ -12,13 +12,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Collator;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class SubcategoryService {
+    // subcategories named this always sort last, in every list they appear in
+    private static final String OTHER_NAME = "ΑΛΛΟ";
+
     private final SubcategoryRepository subcategoryRepository;
     private final CategoryRepository categoryRepository;
     private final TicketRepository ticketRepository;
@@ -83,8 +89,11 @@ public class SubcategoryService {
         Map<Long, Long> ticketCounts = ticketRepository.countTicketsGroupedBySubcategory().stream()
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
 
+        Collator collator = Collator.getInstance(new Locale("el", "GR"));
         return subcategories.stream()
                 .map(s -> toResponse(s, ticketCounts.getOrDefault(s.getId(), 0L)))
+                .sorted(Comparator.comparingInt((SubcategoryResponse s) -> OTHER_NAME.equalsIgnoreCase(s.getName()) ? 1 : 0)
+                        .thenComparing(SubcategoryResponse::getName, (a, b) -> collator.compare(a, b)))
                 .toList();
     }
 

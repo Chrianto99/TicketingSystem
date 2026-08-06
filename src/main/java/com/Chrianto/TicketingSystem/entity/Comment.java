@@ -3,8 +3,6 @@ package com.Chrianto.TicketingSystem.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "comment")
@@ -26,7 +24,4 @@ public class Comment {
     private String text;
 
     private LocalDateTime timestamp;
-
-    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Attachment> attachments = new ArrayList<>();
 }
