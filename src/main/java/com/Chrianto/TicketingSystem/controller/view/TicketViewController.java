@@ -12,6 +12,7 @@ import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
 import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
 import com.Chrianto.TicketingSystem.service.CategoryService;
 import com.Chrianto.TicketingSystem.service.DepartmentService;
+import com.Chrianto.TicketingSystem.service.NotificationService;
 import com.Chrianto.TicketingSystem.service.TicketService;
 import com.Chrianto.TicketingSystem.service.UserService;
 import jakarta.validation.Valid;
@@ -41,6 +42,7 @@ public class TicketViewController {
     private final DepartmentService departmentService;
     private final CategoryService categoryService;
     private final UserService userService;
+    private final NotificationService notificationService;
 
     @InitBinder
     public void initBinder(WebDataBinder binder) {
@@ -52,14 +54,12 @@ public class TicketViewController {
     @GetMapping
     public String listTickets(@RequestParam(required = false) String status,
                                @RequestParam(required = false) TicketPriority priority,
-                               @RequestParam(required = false) Long departmentId,
-                               @RequestParam(required = false) Long categoryId,
                                @RequestParam(required = false) String scope,
-                               @RequestParam(required = false) String description,
+                               @RequestParam(required = false) String query,
                                @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
                                @AuthenticationPrincipal User currentUser,
                                Model model) {
-        populateListData(model, resolveStatusFilter(status), priority, departmentId, categoryId, resolveScopeFilter(scope), description, currentUser, pageable);
+        populateListData(model, resolveStatusFilter(status), priority, resolveScopeFilter(scope), query, currentUser, pageable);
         populateCreateFormData(model, currentUser);
         return "tickets/list";
     }
@@ -70,10 +70,8 @@ public class TicketViewController {
                                 @RequestParam(defaultValue = "open") String action,
                                 @RequestParam(required = false) String status,
                                 @RequestParam(required = false) TicketPriority priority,
-                                @RequestParam(required = false) Long departmentId,
-                                @RequestParam(required = false) Long categoryId,
                                 @RequestParam(required = false) String scope,
-                                @RequestParam(required = false) String description,
+                                @RequestParam(required = false) String query,
                                 @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
                                 @AuthenticationPrincipal User currentUser,
                                 Model model) {
@@ -82,12 +80,12 @@ public class TicketViewController {
                     "Απαιτείται υποκατηγορία για την επίλυση ενός ticket");
         }
         if (bindingResult.hasErrors()) {
-            populateListData(model, resolveStatusFilter(status), priority, departmentId, categoryId, resolveScopeFilter(scope), description, currentUser, pageable);
+            populateListData(model, resolveStatusFilter(status), priority, resolveScopeFilter(scope), query, currentUser, pageable);
             populateCreateFormData(model, currentUser);
             return "tickets/list";
         }
-        var created = ticketService.createTicket(req, currentUser);
-        return "redirect:/tickets?openTicket=" + created.getId();
+        ticketService.createTicket(req, currentUser);
+        return "redirect:/tickets";
     }
 
     @GetMapping("/{ticketId}")
@@ -215,12 +213,16 @@ public class TicketViewController {
         redirectAttributes.addFlashAttribute("errorMessage", message);
     }
 
-    private void populateListData(Model model, TicketStatus status, TicketPriority priority, Long departmentId,
-                                   Long categoryId, String scope, String description, User currentUser, Pageable pageable) {
+    private void populateListData(Model model, TicketStatus status, TicketPriority priority,
+                                   String scope, String query, User currentUser, Pageable pageable) {
         Long assignedToUserId = "assigned".equals(scope) ? currentUser.getId() : null;
-        model.addAttribute("ticketPage", ticketService.getAllTickets(status, priority, departmentId, categoryId,
-                null, assignedToUserId, description, pageable));
-        model.addAttribute("description", description);
+        if ("assigned".equals(scope)) {
+            notificationService.markSeen(currentUser.getId());
+        }
+        model.addAttribute("hasUnseenAssignedTickets", notificationService.hasUnseenAssignedTickets(currentUser.getId()));
+        model.addAttribute("ticketPage", ticketService.getAllTickets(status, priority,
+                null, assignedToUserId, query, pageable));
+        model.addAttribute("query", query);
         model.addAttribute("status", status);
         // status/scope are null here when the filter means "show everything" (needed for the
         // JPA query), but a null query param is dropped entirely by Thymeleaf's @{} link
@@ -229,8 +231,6 @@ public class TicketViewController {
         model.addAttribute("statusParam", status == null ? "ALL" : status.name());
         model.addAttribute("statusFilterActive", status != TicketStatus.OPEN);
         model.addAttribute("priority", priority);
-        model.addAttribute("departmentId", departmentId);
-        model.addAttribute("categoryId", categoryId);
         model.addAttribute("scope", scope);
         model.addAttribute("scopeParam", scope == null ? "all" : scope);
         model.addAttribute("statuses", TicketStatus.values());

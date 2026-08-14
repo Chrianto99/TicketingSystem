@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var visibleCount = 0;
 
         cards.forEach(function (card) {
-            var name = card.querySelector('.entity-name');
+            var name = card.querySelector('.entity-name .entity-edit-view');
             var code = card.querySelector('.entity-code');
             var text = ((name ? name.textContent : '') + ' ' + (code ? code.textContent : '')).toLowerCase();
             var matches = !query || text.indexOf(query) !== -1;

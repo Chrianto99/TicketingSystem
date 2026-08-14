@@ -54,9 +54,8 @@ public class UserViewController {
     }
 
     @GetMapping("/{userId}")
-    public String viewUser(@PathVariable Long userId, Model model) {
-        model.addAttribute("user", userService.getUserById(userId));
-        return "users/detail";
+    public String viewUser(@PathVariable Long userId) {
+        return "redirect:/users?openUser=" + userId;
     }
 
     @GetMapping("/new")

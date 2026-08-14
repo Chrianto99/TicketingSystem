@@ -36,6 +36,7 @@ public class TicketService {
 
     private final TicketHistoryService ticketHistoryService;
     private final AttachmentService attachmentService;
+    private final NotificationService notificationService;
 
     public TicketResponse createTicket(TicketCreateRequest req, User creator) {
         User assignee = userRepository.findById(req.getAssignedUserId())
@@ -82,10 +83,13 @@ public class TicketService {
 
         ticket = ticketRepository.save(ticket);
 
-        ticketHistoryService.logHistory(ticket, creator, TicketAction.CREATED, null, null);
-        ticketHistoryService.logHistory(ticket, creator, TicketAction.ASSIGNED, assignee, null);
+        ticketHistoryService.logHistory(ticket, creator, TicketAction.CREATED, null, null, null);
+        ticketHistoryService.logHistory(ticket, creator, TicketAction.ASSIGNED, assignee, null, null);
         if (autoResolve) {
-            ticketHistoryService.logHistory(ticket, creator, TicketAction.RESOLVED, null, null);
+            ticketHistoryService.logHistory(ticket, creator, TicketAction.RESOLVED, null, null, null);
+        }
+        if (!assignee.getId().equals(creator.getId())) {
+            notificationService.notifyTicketAssigned(assignee.getId());
         }
 
         return toResponse(ticket);
@@ -112,6 +116,8 @@ public class TicketService {
             throw new IllegalStateException("Μόνο ο δημιουργός του ticket μπορεί να επεξεργαστεί αυτές τις πληροφορίες");
         }
 
+        String changes = buildInfoChangeDescription(ticket, req, department, category, subcategory);
+
         ticket.setLastModifiedBy(performedBy);
         ticket.setDepartment(department);
         ticket.setCategory(category);
@@ -126,7 +132,57 @@ public class TicketService {
 
         ticket = ticketRepository.save(ticket);
 
+        if (changes != null) {
+            ticketHistoryService.logHistory(ticket, performedBy, TicketAction.INFO_CHANGED, null, null, changes);
+        }
+
         return toResponse(ticket);
+    }
+
+    private static final int HISTORY_VALUE_MAX_LENGTH = 80;
+
+    private String buildInfoChangeDescription(Ticket before, TicketUpdateRequest req,
+                                               Department department, Category category, Subcategory subcategory) {
+        List<String> changes = new java.util.ArrayList<>();
+        appendChange(changes, "Τίτλος", before.getSummary(), req.getSummary());
+        appendChange(changes, "Όνομα καλούντος", before.getCallerName(), req.getCallerName());
+        appendChange(changes, "Αριθμός τηλεφώνου", before.getPhoneNumber(), req.getPhoneNumber());
+        appendChange(changes, "Διεύθυνση IP", before.getIpAddress(), req.getIpAddress());
+        appendChange(changes, "Τμήμα",
+                before.getDepartment() != null ? before.getDepartment().getName() : null,
+                department != null ? department.getName() : null);
+        appendChange(changes, "Κατηγορία Βλάβης",
+                before.getCategory() != null ? before.getCategory().getName() : null,
+                category != null ? category.getName() : null);
+        appendChange(changes, "Υποκατηγορία",
+                before.getSubcategory() != null ? before.getSubcategory().getName() : null,
+                subcategory != null ? subcategory.getName() : null);
+        appendChange(changes, "Προτεραιότητα",
+                before.getPriority() != null ? before.getPriority().getDisplayName() : null,
+                req.getPriority() != null ? req.getPriority().getDisplayName() : null);
+        appendChange(changes, "Λεπτομέρειες", before.getDescription(), req.getDescription());
+
+        return changes.isEmpty() ? null : String.join("; ", changes);
+    }
+
+    private void appendChange(List<String> changes, String label, String oldValue, String newValue) {
+        String oldNorm = oldValue == null ? "" : oldValue.trim();
+        String newNorm = newValue == null ? "" : newValue.trim();
+        if (oldNorm.equals(newNorm)) {
+            return;
+        }
+        String oldDisplay = oldNorm.isEmpty() ? "—" : truncateForHistory(oldNorm, HISTORY_VALUE_MAX_LENGTH);
+        String newDisplay = newNorm.isEmpty() ? "—" : truncateForHistory(newNorm, HISTORY_VALUE_MAX_LENGTH);
+        changes.add(label + ": «" + oldDisplay + "» → «" + newDisplay + "»");
+    }
+
+    private static final int HISTORY_REASON_MAX_LENGTH = 1900;
+    private static final int HISTORY_COMMENT_DIFF_MAX_LENGTH = 900;
+
+    private String truncateForHistory(String value, int maxLength) {
+        return value.length() > maxLength
+                ? value.substring(0, maxLength) + "…"
+                : value;
     }
 
     public void editComment(Long commentId, CommentUpdateRequest req, User currentUser) {
@@ -137,8 +193,34 @@ public class TicketService {
             throw new IllegalStateException("Μόνο ο συντάκτης του σχολίου μπορεί να το επεξεργαστεί");
         }
 
+        String oldText = comment.getText();
         comment.setText(req.getText());
         commentRepository.save(comment);
+
+        if (!oldText.trim().equals(req.getText().trim())) {
+            String description = "Σχόλιο: «" + truncateForHistory(oldText.trim(), HISTORY_COMMENT_DIFF_MAX_LENGTH) +
+                    "» → «" + truncateForHistory(req.getText().trim(), HISTORY_COMMENT_DIFF_MAX_LENGTH) + "»";
+            ticketHistoryService.logHistory(comment.getTicket(), currentUser, TicketAction.COMMENT_EDITED, null, null, description);
+        }
+    }
+
+    @Transactional
+    public void deleteComment(Long commentId, User currentUser) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("Το σχόλιο δεν βρέθηκε"));
+
+        if (comment.getUser() == null || !comment.getUser().getId().equals(currentUser.getId())) {
+            throw new IllegalStateException("Μόνο ο συντάκτης του σχολίου μπορεί να το διαγράψει");
+        }
+
+        Ticket ticket = comment.getTicket();
+        String commentText = comment.getText();
+
+        ticketHistoryService.unlinkComment(commentId);
+        commentRepository.delete(comment);
+
+        ticketHistoryService.logHistory(ticket, currentUser, TicketAction.COMMENT_REMOVED, null, null,
+                truncateForHistory(commentText.trim(), HISTORY_COMMENT_DIFF_MAX_LENGTH));
     }
 
     public TicketResponse resolveTicket(Long ticketId, TicketChangeStatusRequest req, User performedBy) {
@@ -167,7 +249,7 @@ public class TicketService {
         ticket.setUpdatedAt(LocalDateTime.now());
         ticket = ticketRepository.save(ticket);
 
-        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.RESOLVED, null, null);
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.RESOLVED, null, null, null);
 
         return toResponse(ticket);
     }
@@ -183,14 +265,13 @@ public class TicketService {
             throw new IllegalStateException("Το ticket είναι ήδη " + ticket.getStatus().getDisplayName());
         }
 
-        Comment comment = postComment(ticket, performedBy, req.getCommentText());
-
         ticket.setStatus(TicketStatus.CANCELLED);
         ticket.setLastModifiedBy(performedBy);
         ticket.setUpdatedAt(LocalDateTime.now());
         ticket = ticketRepository.save(ticket);
 
-        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.CANCELLED, null, comment);
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.CANCELLED, null, null,
+                truncateForHistory(req.getCommentText().trim(), HISTORY_REASON_MAX_LENGTH));
 
         return toResponse(ticket);
     }
@@ -208,7 +289,7 @@ public class TicketService {
 
         Comment comment = postComment(ticket, performedBy, req.getCommentText());
 
-        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.COMMENT_ADDED, null, comment);
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.COMMENT_ADDED, null, comment, null);
 
         return toResponse(ticket);
     }
@@ -225,8 +306,8 @@ public class TicketService {
             throw new IllegalStateException("Το ticket είναι ήδη " + ticket.getStatus().getDisplayName());
         }
 
-        Comment comment = req.getCommentText() != null && !req.getCommentText().isBlank()
-                ? postComment(ticket, performedBy, req.getCommentText())
+        String reason = req.getCommentText() != null && !req.getCommentText().isBlank()
+                ? truncateForHistory(req.getCommentText().trim(), HISTORY_REASON_MAX_LENGTH)
                 : null;
 
         ticket.setStatus(TicketStatus.OPEN);
@@ -235,7 +316,11 @@ public class TicketService {
         ticket.setAssignedUser(assignTo);
         ticket = ticketRepository.save(ticket);
 
-        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.REASSIGNED, assignTo, comment);
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.REASSIGNED, assignTo, null, reason);
+
+        if (!assignTo.getId().equals(performedBy.getId())) {
+            notificationService.notifyTicketAssigned(assignTo.getId());
+        }
 
         return toResponse(ticket);
     }
@@ -249,14 +334,13 @@ public class TicketService {
             throw new IllegalStateException("Το ticket είναι ήδη " + ticket.getStatus().getDisplayName());
         }
 
-        Comment comment = postComment(ticket, performedBy, req.getCommentText());
-
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setLastModifiedBy(performedBy);
         ticket.setUpdatedAt(LocalDateTime.now());
         ticket = ticketRepository.save(ticket);
 
-        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.REOPENED, null, comment);
+        ticketHistoryService.logHistory(ticket, performedBy, TicketAction.REOPENED, null, null,
+                truncateForHistory(req.getCommentText().trim(), HISTORY_REASON_MAX_LENGTH));
 
         return toResponse(ticket);
     }
@@ -291,10 +375,9 @@ public class TicketService {
         return toResponse(ticket);
     }
 
-    public Page<TicketResponse> getAllTickets(TicketStatus status, TicketPriority priority, Long departmentId,
-                                               Long categoryId, Long createdByUserId, Long assignedToUserId,
-                                               String description, Pageable pageable){
-        return ticketRepository.search(status, priority, departmentId, categoryId, createdByUserId, assignedToUserId, description, pageable)
+    public Page<TicketResponse> getAllTickets(TicketStatus status, TicketPriority priority, Long createdByUserId,
+                                               Long assignedToUserId, String query, Pageable pageable){
+        return ticketRepository.search(status, priority, createdByUserId, assignedToUserId, query, pageable)
                 .map(this::toResponse);
     }
 

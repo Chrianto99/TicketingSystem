@@ -55,7 +55,63 @@
         });
     });
 
+    // Inline "edit name in place" rows (Categories, Subcategories, Departments):
+    // the "⋮" menu's "Επεξεργασία" action doesn't hold its own form — it swaps the
+    // row's visible name (.entity-edit-view) for its edit form (.entity-inline-edit-form)
+    // directly in the row/list item, marked with [data-entity-row].
+    document.addEventListener('click', function (e) {
+        var trigger = e.target.closest('.js-edit-trigger');
+        if (trigger) {
+            var row = trigger.closest('[data-entity-row]');
+            var menu = trigger.closest('.entity-menu');
+            if (menu) {
+                menu.removeAttribute('open');
+            }
+            if (!row) {
+                return;
+            }
+            row.querySelectorAll('.entity-edit-view').forEach(function (el) { el.hidden = true; });
+            var form = row.querySelector('.entity-inline-edit-form');
+            if (form) {
+                form.hidden = false;
+                var input = form.querySelector('input[type="text"]');
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }
+            return;
+        }
+
+        var cancel = e.target.closest('.js-edit-cancel');
+        if (cancel) {
+            var editRow = cancel.closest('[data-entity-row]');
+            if (!editRow) {
+                return;
+            }
+            var editForm = cancel.closest('.entity-inline-edit-form');
+            if (editForm) {
+                editForm.hidden = true;
+                editForm.querySelectorAll('input[type="text"]').forEach(function (input) {
+                    input.value = input.defaultValue;
+                });
+            }
+            editRow.querySelectorAll('.entity-edit-view').forEach(function (el) { el.hidden = false; });
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', function () {
+        // Theme itself is applied synchronously by the inline head script (before
+        // paint, to avoid a flash of the wrong theme); this just wires the toggle.
+        var themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', function () {
+                var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('theme', next);
+            });
+        }
+
         var errorModal = document.getElementById('error-modal');
         if (errorModal) {
             var closeBtn = document.getElementById('error-modal-close');

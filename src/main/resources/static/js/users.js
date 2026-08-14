@@ -35,21 +35,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('.entity-card[data-user-id]').forEach(function (card) {
         card.addEventListener('click', function () {
-            openUserModal(card);
+            openUserModal({
+                id: card.getAttribute('data-user-id'),
+                username: card.getAttribute('data-username'),
+                role: card.getAttribute('data-role'),
+                active: card.getAttribute('data-active') === 'true',
+                scheduledDeletionAt: card.getAttribute('data-scheduled-deletion'),
+                firstName: card.getAttribute('data-first-name'),
+                lastName: card.getAttribute('data-last-name'),
+                email: card.getAttribute('data-email'),
+                phoneNumber: card.getAttribute('data-phone')
+            });
         });
     });
 
-    function openUserModal(card) {
-        var userId = card.getAttribute('data-user-id');
-        var username = card.getAttribute('data-username');
-        var active = card.getAttribute('data-active') === 'true';
-        var scheduledDeletion = card.getAttribute('data-scheduled-deletion');
+    var openUserParam = new URLSearchParams(window.location.search).get('openUser');
+    if (openUserParam) {
+        fetch('/api/users/' + openUserParam)
+            .then(function (res) { return res.ok ? res.json() : Promise.reject(); })
+            .then(function (user) { openUserModal(user); })
+            .catch(function () {});
+        var cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState(null, '', cleanUrl);
+    }
 
-        titleEl.textContent = username;
-        roleBadge.textContent = ROLE_LABELS[card.getAttribute('data-role')] || card.getAttribute('data-role');
-        roleBadge.className = 'badge role-' + card.getAttribute('data-role');
+    function openUserModal(user) {
+        var userId = user.id;
+        var active = user.active;
+        var scheduledDeletion = user.scheduledDeletionAt;
 
-        var fullName = ((card.getAttribute('data-first-name') || '') + ' ' + (card.getAttribute('data-last-name') || '')).trim();
+        titleEl.textContent = user.username;
+        roleBadge.textContent = ROLE_LABELS[user.role] || user.role;
+        roleBadge.className = 'badge role-' + user.role;
+
+        var fullName = ((user.firstName || '') + ' ' + (user.lastName || '')).trim();
         if (fullName) {
             nameRow.hidden = false;
             nameEl.textContent = fullName;
@@ -57,8 +76,8 @@ document.addEventListener('DOMContentLoaded', function () {
             nameRow.hidden = true;
         }
 
-        emailEl.textContent = card.getAttribute('data-email') || '—';
-        phoneEl.textContent = card.getAttribute('data-phone') || '—';
+        emailEl.textContent = user.email || '—';
+        phoneEl.textContent = user.phoneNumber || '—';
         statusEl.textContent = active ? 'Ενεργός' : 'Απενεργοποιημένος';
 
         if (!active && scheduledDeletion) {
@@ -87,8 +106,8 @@ document.addEventListener('DOMContentLoaded', function () {
             reactivateForm.hidden = active;
         }
         if (toggleAdminForm) {
-            var isAdmin = card.getAttribute('data-role') === 'ADMIN';
-            var isSelf = currentUserId !== null && userId === currentUserId;
+            var isAdmin = user.role === 'ADMIN';
+            var isSelf = currentUserId !== null && String(userId) === currentUserId;
             toggleAdminForm.setAttribute('action', '/users/' + userId + '/toggle-admin');
             toggleAdminCsrf.value = csrfToken;
             toggleAdminForm.hidden = isSelf;

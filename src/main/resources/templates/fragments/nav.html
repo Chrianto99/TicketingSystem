@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
+<script th:fragment="theme-init">document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+
 <nav class="navbar" th:fragment="nav">
     <div class="navbar-brand"><a th:href="@{/tickets}"><img th:src="@{/img/gepLogo.png}" alt="Ticketing System" class="navbar-logo"></a></div>
     <div class="navbar-links">
@@ -10,6 +12,10 @@
         <a th:href="@{/users}">Χρήστες</a>
     </div>
     <div class="navbar-user">
+        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Εναλλαγή σκοτεινού θέματος" title="Εναλλαγή σκοτεινού θέματος">
+            <span class="icon-moon">🌙</span>
+            <span class="icon-sun">☀️</span>
+        </button>
         <a th:href="@{/profile}" class="navbar-avatar" title="Το προφίλ μου"
            th:text="${#strings.toUpperCase(#strings.substring(#authentication.name, 0, 1))}"></a>
         <span sec:authentication="name">username</span>

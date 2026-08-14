@@ -5,6 +5,7 @@ import com.Chrianto.TicketingSystem.dto.response.AttachmentResponse;
 import com.Chrianto.TicketingSystem.entity.Attachment;
 import com.Chrianto.TicketingSystem.entity.Ticket;
 import com.Chrianto.TicketingSystem.entity.User;
+import com.Chrianto.TicketingSystem.entity.enums.TicketAction;
 import com.Chrianto.TicketingSystem.exception.EntityNotFoundException;
 import com.Chrianto.TicketingSystem.repository.AttachmentRepository;
 import com.Chrianto.TicketingSystem.repository.TicketRepository;
@@ -33,6 +34,7 @@ public class AttachmentService {
 
     private final AttachmentRepository attachmentRepository;
     private final TicketRepository ticketRepository;
+    private final TicketHistoryService ticketHistoryService;
 
     @Value("${app.attachments.dir:uploads}")
     private String uploadDir;
@@ -83,6 +85,8 @@ public class AttachmentService {
         attachment.setUploadedAt(LocalDateTime.now());
         attachment = attachmentRepository.save(attachment);
 
+        ticketHistoryService.logHistory(ticket, currentUser, TicketAction.ATTACHMENT_ADDED, null, null, originalName);
+
         return toResponse(attachment);
     }
 
@@ -102,6 +106,8 @@ public class AttachmentService {
 
         deleteFileQuietly(attachment);
         attachmentRepository.delete(attachment);
+
+        ticketHistoryService.logHistory(attachment.getTicket(), currentUser, TicketAction.ATTACHMENT_REMOVED, null, null, attachment.getFileName());
     }
 
     public AttachmentDownload downloadAttachment(Long attachmentId) {

@@ -2,6 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
+    <script th:replace="~{fragments/nav :: theme-init}"></script>
     <title>Τμήματα</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <link rel="icon" type="image/png" th:href="@{/img/favicon.png}">
@@ -35,22 +36,23 @@
         </tr>
         </thead>
         <tbody id="department-list">
-        <tr class="entity-card" th:each="department : ${activeDepartments}">
-            <td class="entity-name" th:text="${department.name}"></td>
-            <td><span class="entity-code" th:if="${not #strings.isEmpty(department.code)}" th:text="${department.code}"></span></td>
+        <tr class="entity-card" th:each="department : ${activeDepartments}" data-entity-row>
+            <td class="entity-name">
+                <span class="entity-edit-view" th:text="${department.name}"></span>
+                <form method="post" th:action="@{/departments/{id}/edit(id=${department.id})}" class="entity-inline-edit-form" hidden="hidden">
+                    <input type="text" name="name" th:value="${department.name}" required="required" placeholder="Όνομα" aria-label="Όνομα τμήματος">
+                    <input type="text" name="code" th:value="${department.code}" placeholder="Κωδικός" aria-label="Κωδικός τμήματος">
+                    <button type="submit" class="btn btn-sm">Αποθήκευση</button>
+                    <button type="button" class="btn btn-sm js-edit-cancel">Άκυρο</button>
+                </form>
+            </td>
+            <td><span class="entity-code entity-edit-view" th:if="${not #strings.isEmpty(department.code)}" th:text="${department.code}"></span></td>
 <!--            <td><span class="badge entity-status-badge status-active">Ενεργό</span></td>-->
             <td class="entity-actions-cell">
                 <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
                     <summary title="Επιλογές">&#8942;</summary>
                     <div class="entity-menu-panel">
-                        <details class="entity-menu-edit-toggle">
-                            <summary class="entity-menu-action">Επεξεργασία</summary>
-                            <form method="post" th:action="@{/departments/{id}/edit(id=${department.id})}" class="entity-menu-edit">
-                                <input type="text" name="name" th:value="${department.name}" required="required" placeholder="Όνομα" aria-label="Όνομα τμήματος">
-                                <input type="text" name="code" th:value="${department.code}" placeholder="Κωδικός" aria-label="Κωδικός τμήματος">
-                                <button type="submit" class="btn btn-sm">Αποθήκευση</button>
-                            </form>
-                        </details>
+                        <button type="button" class="entity-menu-action js-edit-trigger">Επεξεργασία</button>
                         <div class="entity-menu-divider"></div>
                         <form method="post" th:action="@{/departments/{id}/toggle-active(id=${department.id})}">
                             <button type="submit" class="entity-menu-action">Απενεργοποίηση</button>
@@ -64,22 +66,23 @@
             <td colspan="4">Ανενεργά</td>
         </tr>
 
-        <tr class="entity-card entity-card-inactive" th:each="department : ${inactiveDepartments}">
-            <td class="entity-name" th:text="${department.name}"></td>
-            <td><span class="entity-code" th:if="${not #strings.isEmpty(department.code)}" th:text="${department.code}"></span></td>
+        <tr class="entity-card entity-card-inactive" th:each="department : ${inactiveDepartments}" data-entity-row>
+            <td class="entity-name">
+                <span class="entity-edit-view" th:text="${department.name}"></span>
+                <form method="post" th:action="@{/departments/{id}/edit(id=${department.id})}" class="entity-inline-edit-form" hidden="hidden">
+                    <input type="text" name="name" th:value="${department.name}" required="required" placeholder="Όνομα" aria-label="Όνομα τμήματος">
+                    <input type="text" name="code" th:value="${department.code}" placeholder="Κωδικός" aria-label="Κωδικός τμήματος">
+                    <button type="submit" class="btn btn-sm">Αποθήκευση</button>
+                    <button type="button" class="btn btn-sm js-edit-cancel">Άκυρο</button>
+                </form>
+            </td>
+            <td><span class="entity-code entity-edit-view" th:if="${not #strings.isEmpty(department.code)}" th:text="${department.code}"></span></td>
             <td><span class="badge entity-status-badge status-inactive">Ανενεργό</span></td>
             <td class="entity-actions-cell">
                 <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
                     <summary title="Επιλογές">&#8942;</summary>
                     <div class="entity-menu-panel">
-                        <details class="entity-menu-edit-toggle">
-                            <summary class="entity-menu-action">Επεξεργασία</summary>
-                            <form method="post" th:action="@{/departments/{id}/edit(id=${department.id})}" class="entity-menu-edit">
-                                <input type="text" name="name" th:value="${department.name}" required="required" placeholder="Όνομα" aria-label="Όνομα τμήματος">
-                                <input type="text" name="code" th:value="${department.code}" placeholder="Κωδικός" aria-label="Κωδικός τμήματος">
-                                <button type="submit" class="btn btn-sm">Αποθήκευση</button>
-                            </form>
-                        </details>
+                        <button type="button" class="entity-menu-action js-edit-trigger">Επεξεργασία</button>
                         <div class="entity-menu-divider"></div>
                         <form method="post" th:action="@{/departments/{id}/toggle-active(id=${department.id})}">
                             <button type="submit" class="entity-menu-action">Ενεργοποίηση</button>

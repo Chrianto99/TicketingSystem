@@ -79,6 +79,14 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.commentOnTicket(ticketId, req, currentUser));
     }
 
+    @DeleteMapping("/{ticketId}/comments/{commentId}")
+    public ResponseEntity<Void> deleteComment(@PathVariable Long ticketId,
+                                               @PathVariable Long commentId,
+                                               @AuthenticationPrincipal User currentUser) {
+        ticketService.deleteComment(commentId, currentUser);
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{ticketId}/reassign")
     public ResponseEntity<TicketResponse> reassignTicket(@PathVariable Long ticketId,
                                                          @Valid @RequestBody TicketReassignRequest req,
@@ -95,13 +103,11 @@ public class TicketController {
     public ResponseEntity<Page<TicketResponse>> getAllTickets(
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) TicketPriority priority,
-            @RequestParam(required = false) Long departmentId,
-            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long createdByUserId,
             @RequestParam(required = false) Long assignedToUserId,
-            @RequestParam(required = false) String description,
+            @RequestParam(required = false) String query,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(ticketService.getAllTickets(status, priority, departmentId, categoryId, createdByUserId, assignedToUserId, description, pageable));
+        return ResponseEntity.ok(ticketService.getAllTickets(status, priority, createdByUserId, assignedToUserId, query, pageable));
     }
 
     @DeleteMapping("/{ticketId}")

@@ -20,4 +20,8 @@ public interface TicketHistoryRepository extends JpaRepository<TicketHistory, Lo
     @Modifying
     @Query("UPDATE TicketHistory h SET h.assignedTo = null WHERE h.assignedTo.id = :userId")
     void nullifyAssignedTo(@Param("userId") Long userId);
+
+    @Modifying
+    @Query("UPDATE TicketHistory h SET h.comment = null WHERE h.comment.id = :commentId")
+    void nullifyComment(@Param("commentId") Long commentId);
 }

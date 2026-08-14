@@ -9,6 +9,7 @@ import com.Chrianto.TicketingSystem.entity.enums.UserRole;
 import com.Chrianto.TicketingSystem.security.SecurityConfig;
 import com.Chrianto.TicketingSystem.service.CategoryService;
 import com.Chrianto.TicketingSystem.service.DepartmentService;
+import com.Chrianto.TicketingSystem.service.NotificationService;
 import com.Chrianto.TicketingSystem.service.TicketHistoryService;
 import com.Chrianto.TicketingSystem.service.TicketService;
 import com.Chrianto.TicketingSystem.service.UserService;
@@ -56,6 +57,8 @@ class TicketViewControllerTest {
     private CategoryService categoryService;
     @MockitoBean
     private UserService userService;
+    @MockitoBean
+    private NotificationService notificationService;
     // Required to satisfy SecurityConfig's constructor; not exercised since
     // .with(user(...)) sets the SecurityContext directly instead of authenticating.
     @MockitoBean
@@ -76,7 +79,7 @@ class TicketViewControllerTest {
         when(userService.getAllUsers()).thenReturn(List.of());
         // The re-rendered "tickets/list" view (shown on validation failure) also
         // renders the ticket table, so getAllTickets must be stubbed for every test.
-        when(ticketService.getAllTickets(any(), any(), any(), any(), any(), any(), any(), any()))
+        when(ticketService.getAllTickets(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));
     }
 
@@ -124,7 +127,7 @@ class TicketViewControllerTest {
                         .param("priority", "HIGH")
                         .param("description", "Initial report"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/tickets?openTicket=42"));
+                .andExpect(redirectedUrl("/tickets"));
 
         verify(ticketService).createTicket(any(TicketCreateRequest.class), eq(currentUser));
     }
@@ -189,7 +192,7 @@ class TicketViewControllerTest {
                         .param("description", "Initial report")
                         .param("resolution", "Replaced the toner cartridge"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/tickets?openTicket=43"));
+                .andExpect(redirectedUrl("/tickets"));
 
         verify(ticketService).createTicket(any(TicketCreateRequest.class), eq(currentUser));
     }
@@ -253,7 +256,7 @@ class TicketViewControllerTest {
                         .param("description", "Initial report")
                         .param("ipAddress", ""))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/tickets?openTicket=7"));
+                .andExpect(redirectedUrl("/tickets"));
 
         verify(ticketService).createTicket(any(TicketCreateRequest.class), eq(currentUser));
     }

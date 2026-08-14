@@ -17,6 +17,9 @@ public class TicketHistory {
     @OneToOne @JoinColumn(name = "comment_id")
     private Comment comment;
 
+    @Column(length = 2000)
+    private String description;
+
     @NonNull @ManyToOne @JoinColumn(name = "ticket_id")
     private Ticket ticket;
 

@@ -1,19 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap');
 
 :root {
-    --color-bg: #f4f5f7;
+    --color-bg: #f7f4f4;
     --color-surface: #ffffff;
-    --color-border: #e1e4e8;
-    --color-text: #172b4d;
-    --color-text-muted: #5e6c84;
-    --color-primary: #4b5320;
-    --color-primary-hover: #3a4019;
-    --color-accent: #8a7f4d;
+    --color-surface-alt: #fbf3f3;
+    --color-border: #e8d5d5;
+    --color-divider-subtle: #f2e4e4;
+    --color-text: #2a1416;
+    --color-text-muted: #6b4d4f;
+    --color-primary: #a6192e;
+    --color-primary-hover: #841322;
+    --color-accent: #d94452;
     --color-danger: #dc2626;
 
     --font-heading: "Oswald", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --navbar-gradient: linear-gradient(120deg, #3a4019 0%, var(--color-primary) 45%, var(--color-accent) 100%);
-    --bg-watermark: linear-gradient(rgba(244, 245, 247, 0.92), rgba(244, 245, 247, 0.92)), url("/img/background.png");
+    --navbar-gradient: linear-gradient(120deg, #6b1220 0%, var(--color-primary) 45%, var(--color-accent) 100%);
+    --bg-watermark: linear-gradient(rgba(247, 244, 244, 0.92), rgba(247, 244, 244, 0.92)), url("/img/background.png");
 
     --status-open-bg: #dbeafe;
     --status-open-text: #1d4ed8;
@@ -34,6 +36,44 @@
     --radius: 8px;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Dark theme: JS (theme.js) sets data-theme on <html> before first paint, based on
+   a saved choice or the OS preference, so this only needs the explicit selector -
+   no @media fallback duplicate is needed since data-theme is always present. */
+:root[data-theme="dark"] {
+    --color-bg: #1a1315;
+    --color-surface: #241a1c;
+    --color-surface-alt: #2c2023;
+    --color-border: #4a2e32;
+    --color-divider-subtle: #3a2528;
+    --color-text: #f3e3e4;
+    --color-text-muted: #b58a8d;
+    --color-primary: #b93c4a;
+    --color-primary-hover: #c0545e;
+    --color-accent: #c56973;
+    --color-danger: #cb5d5d;
+
+    --bg-watermark: linear-gradient(rgba(26, 19, 21, 0.94), rgba(26, 19, 21, 0.94)), url("/img/background.png");
+
+    --status-open-bg: rgba(59, 130, 246, 0.18);
+    --status-open-text: #93c5fd;
+    --status-resolved-bg: rgba(34, 197, 94, 0.16);
+    --status-resolved-text: #86efac;
+    --status-cancelled-bg: rgba(148, 163, 184, 0.16);
+    --status-cancelled-text: #cbd5e1;
+
+    --priority-low-bg: rgba(148, 163, 184, 0.16);
+    --priority-low-text: #cbd5e1;
+    --priority-medium-bg: rgba(250, 204, 21, 0.16);
+    --priority-medium-text: #fde68a;
+    --priority-high-bg: rgba(249, 115, 22, 0.18);
+    --priority-high-text: #fdba74;
+    --priority-critical-bg: rgba(239, 68, 68, 0.18);
+    --priority-critical-text: #fca5a5;
+
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.55);
 }
 
 * {
@@ -80,7 +120,7 @@ button:focus-visible,
 a:focus-visible {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(75, 83, 32, 0.18);
+    box-shadow: 0 0 0 3px rgba(166, 25, 46, 0.18);
 }
 
 /* Nav */
@@ -91,7 +131,7 @@ a:focus-visible {
     background: var(--navbar-gradient);
     padding: 2px 32px;
     min-height: 56px;
-    box-shadow: 0 2px 10px rgba(58, 64, 25, 0.35);
+    box-shadow: 0 2px 10px rgba(107, 18, 32, 0.35);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -175,6 +215,39 @@ a:focus-visible {
     text-decoration: underline;
 }
 
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.theme-toggle .icon-sun,
+.theme-toggle .icon-moon {
+    display: none;
+}
+
+:root[data-theme="light"] .theme-toggle .icon-moon {
+    display: inline;
+}
+
+:root[data-theme="dark"] .theme-toggle .icon-sun {
+    display: inline;
+}
+
 /* Page layout */
 .page {
     max-width: 1100px;
@@ -205,6 +278,7 @@ a:focus-visible {
 }
 
 .page-tab {
+    position: relative;
     font-size: 22px;
     font-weight: 600;
     color: var(--color-text-muted);
@@ -212,6 +286,24 @@ a:focus-visible {
     padding-bottom: 2px;
     border-bottom: 2px solid transparent;
     transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.notif-dot {
+    position: absolute;
+    top: -2px;
+    right: -10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-danger);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.notif-dot.visible {
+    opacity: 1;
+    transform: scale(1);
 }
 
 .page-tab:hover {
@@ -240,7 +332,7 @@ a:focus-visible {
 }
 
 .btn:hover {
-    background: #f8f9fa;
+    background: var(--color-surface-alt);
 }
 
 .btn:disabled {
@@ -285,7 +377,6 @@ a:focus-visible {
 }
 
 .filters-search-full {
-    flex-basis: 100%;
     max-width: 40%;
     min-width: 200px;
 }
@@ -307,7 +398,7 @@ a:focus-visible {
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--color-text-muted);
-    background: #fafbfc;
+    background: var(--color-surface-alt);
     padding: 10px 16px;
     border-bottom: 1px solid var(--color-border);
 }
@@ -324,7 +415,7 @@ a:focus-visible {
 }
 
 .ticket-row:hover {
-    background: #f8f9fb;
+    background: var(--color-surface-alt);
 }
 
 .ticket-row:last-child td {
@@ -366,7 +457,6 @@ a:focus-visible {
 .priority-LOW { background: var(--priority-low-bg); color: var(--priority-low-text); }
 .priority-MEDIUM { background: var(--priority-medium-bg); color: var(--priority-medium-text); }
 .priority-HIGH { background: var(--priority-high-bg); color: var(--priority-high-text); }
-.priority-CRITICAL { background: var(--priority-critical-bg); color: var(--priority-critical-text); }
 
 /* Pagination */
 .pagination {
@@ -398,6 +488,8 @@ dialog.modal-dialog {
     border: none;
     border-radius: var(--radius);
     padding: 0;
+    background: var(--color-surface);
+    color: var(--color-text);
     box-shadow: var(--shadow-lg);
     overflow: hidden;
 }
@@ -519,12 +611,21 @@ dialog.modal-dialog::backdrop {
     padding: 32px;
 }
 
+/* .form-group divs are plain block children here, not flex items of .ticket-form
+   (that's .modal-body/.modal-footer) - without this, they had zero space between
+   them, so each label sat right against the *previous* field instead of its own. */
+#create-ticket-modal .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
 .modal-body .field-row {
     display: flex;
     justify-content: space-between;
     padding: 6px 0;
     font-size: 14px;
-    border-bottom: 1px solid #f1f3f5;
+    border-bottom: 1px solid var(--color-divider-subtle);
 }
 
 .modal-body .field-row-pair {
@@ -558,7 +659,7 @@ dialog.modal-dialog::backdrop {
 .modal-body .description-block {
     margin: 6px 0;
     padding: 9px 10px;
-    background: #f8f9fb;
+    background: var(--color-surface-alt);
     border-radius: var(--radius);
     font-size: 14px;
     white-space: pre-wrap;
@@ -567,7 +668,7 @@ dialog.modal-dialog::backdrop {
 .attachments-heading {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
 }
 
 .modal-body h3 {
@@ -637,7 +738,7 @@ dialog.modal-dialog::backdrop {
 
 .timeline-item {
     position: relative;
-    padding-left: 22px;
+    padding-left: 30px;
     padding-bottom: 22px;
 }
 
@@ -648,38 +749,69 @@ dialog.modal-dialog::backdrop {
 .timeline-item::before {
     content: '';
     position: absolute;
-    left: 4px;
-    top: 14px;
+    left: 9px;
+    top: 24px;
     bottom: -4px;
     width: 2px;
-    background: #eef0f3;
+    background: var(--color-divider-subtle);
 }
 
 .timeline-item:last-child::before {
     display: none;
 }
 
-.timeline-dot {
-    position: absolute;
-    left: 0;
-    top: 4px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    box-shadow: 0 0 0 2px #fff;
+/* Comments tab: flat list, no timeline marker/line — kept visually distinct
+   from the history tab so the two aren't confused for each other. */
+.timeline-item.timeline-item-plain {
+    padding-left: 0;
 }
 
-.timeline-dot.dot-resolved {
+.timeline-item.timeline-item-plain::before {
+    display: none;
+}
+
+.timeline-icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    line-height: 1;
+    font-style: normal;
+    color: var(--color-surface);
+    background: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+.timeline-icon.icon-resolved {
     background: var(--status-resolved-text);
 }
 
-.timeline-dot.dot-cancelled {
+.timeline-icon.icon-cancelled {
     background: var(--color-danger);
 }
 
-.timeline-dot.dot-comment {
+.timeline-icon.icon-reopened {
+    background: var(--priority-high-text);
+}
+
+.timeline-icon.icon-edited,
+.timeline-icon.icon-default {
     background: var(--color-text-muted);
+}
+
+.timeline-icon.icon-created {
+    font-size: 14px;
+}
+
+.timeline-icon svg {
+    width: 11px;
+    height: 11px;
 }
 
 .timeline-text {
@@ -702,8 +834,31 @@ dialog.modal-dialog::backdrop {
     color: var(--color-text);
     margin: 0;
     padding: 9px 12px;
-    background: #f8f9fb;
+    background: var(--color-surface-alt);
     border-radius: var(--radius);
+}
+
+/* INFO_CHANGED entries: one changed field per line instead of one run-on quote. */
+.timeline-changes {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.change-lines-toggle {
+    align-self: flex-start;
+    margin-top: 2px;
+    background: none;
+    border: none;
+    color: var(--color-primary);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0;
+}
+
+.change-lines-toggle:hover {
+    text-decoration: underline;
 }
 
 .attachment-list {
@@ -719,7 +874,7 @@ dialog.modal-dialog::backdrop {
     gap: 4px;
     font-size: 13px;
     padding: 4px 6px 4px 10px;
-    background: #f8f9fb;
+    background: var(--color-surface-alt);
     border: 1px solid var(--color-border);
     border-radius: 999px;
     color: var(--color-text);
@@ -745,6 +900,10 @@ dialog.modal-dialog::backdrop {
 }
 
 .attachment-delete:hover {
+    color: var(--color-danger);
+}
+
+.comment-tab-delete:hover {
     color: var(--color-danger);
 }
 
@@ -835,14 +994,6 @@ dialog.modal-dialog::backdrop {
 }
 
 /* Create Ticket modal — extra breathing room between labels and fields */
-#create-ticket-modal .ticket-form {
-    gap: 22px;
-}
-
-#create-ticket-modal .form-row {
-    gap: 22px;
-}
-
 #create-ticket-modal .form-group {
     gap: 10px;
 }
@@ -870,8 +1021,12 @@ dialog.modal-dialog::backdrop {
     font-size: 13.5px;
 }
 
-#td-edit-description {
+#td-edit-summary {
     min-height: 50px;
+}
+
+#td-edit-description {
+    min-height: 120px;
 }
 
 .ticket-form input,
@@ -880,6 +1035,7 @@ dialog.modal-dialog::backdrop {
     padding: 8px 10px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
+    background: var(--color-surface);
     font-size: 14px;
     color: var(--color-text);
     font-family: inherit;
@@ -895,7 +1051,7 @@ dialog.modal-dialog::backdrop {
 .ticket-form textarea:disabled {
     opacity: 1;
     color: var(--color-text);
-    background-color: #f8f9fb;
+    background-color: var(--color-surface-alt);
     border: none;
     cursor: default;
 }
@@ -973,6 +1129,28 @@ dialog.modal-dialog::backdrop {
     color: var(--color-text);
 }
 
+#td-attachment-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+#td-attachment-toggle svg {
+    width: 18px;
+    height: 18px;
+}
+
+#td-attachment-toggle:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 10px rgba(166, 25, 46, 0.45);
+    transform: translateY(-1px);
+}
+
 .profile-section-heading {
     display: flex;
     align-items: center;
@@ -1034,6 +1212,25 @@ dialog.modal-dialog::backdrop {
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     font-size: 13px;
+}
+
+.resolution-suggestion {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    padding: 4px 10px;
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.resolution-suggestion:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
 }
 
 .btn-sm {
@@ -1157,6 +1354,7 @@ dialog.modal-dialog::backdrop {
     padding: 9px 11px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
+    background: var(--color-surface);
     font-size: 14px;
     color: var(--color-text);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -1213,7 +1411,7 @@ dialog.modal-dialog::backdrop {
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--color-text-muted);
-    background: #fafbfc;
+    background: var(--color-surface-alt);
     padding: 10px 16px;
     border-bottom: 1px solid var(--color-border);
 }
@@ -1247,7 +1445,7 @@ dialog.modal-dialog::backdrop {
 .entity-table tr.subcategory-row td {
     padding-top: 0;
     padding-bottom: 10px;
-    background: #fafbfc;
+    background: var(--color-surface-alt);
 }
 
 .entity-table tr.entity-card:has(+ tr.subcategory-row) td {
@@ -1386,7 +1584,7 @@ dialog.modal-dialog::backdrop {
     align-items: center;
     justify-content: space-between;
     padding: 6px 10px;
-    background: #f8f9fb;
+    background: var(--color-surface-alt);
     border-radius: var(--radius);
     font-size: 14px;
 }
@@ -1500,31 +1698,23 @@ dialog.modal-dialog::backdrop {
     gap: 6px;
 }
 
-.entity-menu-panel input[type="text"] {
+/* Inline "edit name in place" form — replaces .entity-edit-view directly in the
+   row/list item (not inside the ⋮ menu panel) once "Επεξεργασία" is clicked. */
+.entity-inline-edit-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.entity-inline-edit-form input[type="text"] {
     flex: 1;
     min-width: 0;
     padding: 5px 8px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     font-size: 13px;
-}
-
-.entity-menu-edit {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding-bottom: 6px;
-}
-
-.entity-menu-edit-toggle > summary {
-    list-style: none;
-    cursor: pointer;
-}
-
-.entity-menu-edit-toggle > summary::-webkit-details-marker,
-.entity-menu-edit-toggle > summary::marker {
-    display: none;
-    content: "";
 }
 
 .entity-menu-divider {

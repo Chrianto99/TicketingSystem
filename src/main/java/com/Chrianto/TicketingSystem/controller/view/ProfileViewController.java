@@ -7,11 +7,14 @@ import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +25,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class ProfileViewController {
 
     private final UserService userService;
+
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        // blank optional fields (email, phoneNumber, firstName, lastName) should bind as
+        // null, not "" — an empty string would collide with other blank-email users under
+        // the unique constraint.
+        binder.registerCustomEditor(String.class, new StringTrimmerEditor(true));
+    }
 
     @GetMapping
     public String viewProfile(@AuthenticationPrincipal User currentUser, Model model) {

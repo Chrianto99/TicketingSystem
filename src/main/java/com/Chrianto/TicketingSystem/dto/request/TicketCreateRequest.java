@@ -32,7 +32,6 @@ public class TicketCreateRequest {
     @NotNull(message = "Η προτεραιότητα είναι υποχρεωτική")
     private TicketPriority priority;
 
-    @NotBlank(message = "Η περιγραφή είναι υποχρεωτική")
     private String description;
 
     private String resolution;

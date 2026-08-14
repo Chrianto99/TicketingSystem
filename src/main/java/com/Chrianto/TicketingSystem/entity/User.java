@@ -44,6 +44,9 @@ public class User implements UserDetails {
 
     private LocalDateTime scheduledDeletionAt;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean unseenAssignedTickets = false;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));

@@ -15,20 +15,25 @@ import java.util.List;
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     @Query("SELECT t FROM Ticket t " +
+           "LEFT JOIN t.assignedUser au " +
+           "LEFT JOIN t.department d " +
+           "LEFT JOIN t.category c " +
+           "LEFT JOIN t.subcategory sc " +
            "WHERE (:status IS NULL OR t.status = :status) " +
            "AND (:priority IS NULL OR t.priority = :priority) " +
-           "AND (:departmentId IS NULL OR t.department.id = :departmentId) " +
-           "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
            "AND (:createdByUserId IS NULL OR t.creator.id = :createdByUserId) " +
            "AND (:assignedToUserId IS NULL OR t.assignedUser.id = :assignedToUserId) " +
-           "AND (:description IS NULL OR LOWER(t.summary) LIKE LOWER(CONCAT('%', CAST(:description AS string), '%')))")
+           "AND (:query IS NULL " +
+           "OR LOWER(t.summary) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
+           "OR LOWER(au.username) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
+           "OR LOWER(d.name) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
+           "OR LOWER(c.name) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
+           "OR LOWER(sc.name) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')))")
     Page<Ticket> search(@Param("status") TicketStatus status,
                          @Param("priority") TicketPriority priority,
-                         @Param("departmentId") Long departmentId,
-                         @Param("categoryId") Long categoryId,
                          @Param("createdByUserId") Long createdByUserId,
                          @Param("assignedToUserId") Long assignedToUserId,
-                         @Param("description") String description,
+                         @Param("query") String query,
                          Pageable pageable);
 
     @Modifying

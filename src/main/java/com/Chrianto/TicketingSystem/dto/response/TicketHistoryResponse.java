@@ -15,5 +15,6 @@ public class TicketHistoryResponse {
     private String assignedToUsername;
     private Long commentId;
     private String commentText;
+    private String description;
     private LocalDateTime timestamp;
 }

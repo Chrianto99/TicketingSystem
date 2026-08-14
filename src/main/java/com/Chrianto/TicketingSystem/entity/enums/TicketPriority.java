@@ -3,8 +3,7 @@ package com.Chrianto.TicketingSystem.entity.enums;
 public enum TicketPriority {
     LOW("Χαμηλή"),
     MEDIUM("Μεσαία"),
-    HIGH("Υψηλή"),
-    CRITICAL("Κρίσιμη");
+    HIGH("Υψηλή");
 
     private final String displayName;
 

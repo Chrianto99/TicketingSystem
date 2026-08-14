@@ -2,6 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <script th:replace="~{fragments/nav :: theme-init}"></script>
     <title>Το προφίλ μου</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <link rel="icon" type="image/png" th:href="@{/img/favicon.png}">
@@ -40,14 +41,14 @@
         </div>
 
         <div class="form-group">
-            <label for="p-email">Email</label>
-            <input type="email" id="p-email" th:field="*{email}" required="required" th:disabled="${!#fields.hasErrors('*')}">
+            <label for="p-email">Email (προαιρετικό)</label>
+            <input type="email" id="p-email" th:field="*{email}" th:disabled="${!#fields.hasErrors('*')}">
             <span class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></span>
         </div>
 
         <div class="form-group">
-            <label for="p-phone">Αριθμός τηλεφώνου</label>
-            <input type="text" id="p-phone" th:field="*{phoneNumber}" required="required" th:disabled="${!#fields.hasErrors('*')}">
+            <label for="p-phone">Αριθμός τηλεφώνου (προαιρετικό)</label>
+            <input type="text" id="p-phone" th:field="*{phoneNumber}" th:disabled="${!#fields.hasErrors('*')}">
             <span class="field-error" th:if="${#fields.hasErrors('phoneNumber')}" th:errors="*{phoneNumber}"></span>
         </div>
 

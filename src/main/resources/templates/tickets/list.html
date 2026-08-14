@@ -2,6 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <script th:replace="~{fragments/nav :: theme-init}"></script>
     <title>Tickets</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <link rel="icon" type="image/png" th:href="@{/img/favicon.png}">
@@ -13,13 +14,18 @@
 <main class="page">
     <div class="page-header">
         <div class="page-tabs">
-            <a th:href="@{/tickets(scope='assigned')}" th:classappend="${scope == 'assigned'} ? ' active'" class="page-tab">Τα Tickets μου</a>
+            <a th:href="@{/tickets(scope='assigned')}" th:classappend="${scope == 'assigned'} ? ' active'" class="page-tab">Τα Tickets μου<span id="my-tickets-dot" class="notif-dot" th:classappend="${hasUnseenAssignedTickets} ? ' visible'"></span></a>
             <a th:href="@{/tickets(scope='all')}" th:classappend="${scope != 'assigned'} ? ' active'" class="page-tab">Όλα τα Tickets</a>
         </div>
         <button type="button" class="btn btn-primary" onclick="openCreateTicketModal()">+ Νέο Ticket</button>
     </div>
 
     <form class="filters" method="get" th:action="@{/tickets}">
+
+        <input type="hidden" name="scope" th:value="${scopeParam}">
+
+        <input type="search" name="query" id="ticket-description-search" class="filters-search-full"
+               placeholder="Αναζήτηση με βάση τίτλο, τμήμα, κατηγορία, υποκατηγορία ή ανάδοχο..." th:value="${query}" autocomplete="off">
 
         <select name="status" onchange="this.form.submit()">
             <option value="ALL" th:selected="${status == null}">Όλες οι καταστάσεις</option>
@@ -29,20 +35,8 @@
             <option value="">Όλες οι προτεραιότητες</option>
             <option th:each="p : ${priorities}" th:value="${p}" th:text="${p.displayName}" th:selected="${p == priority}"></option>
         </select>
-        <select name="departmentId" onchange="this.form.submit()">
-            <option value="">Όλα τα τμήματα</option>
-            <option th:each="d : ${departments}" th:value="${d.id}" th:text="${d.name}" th:selected="${d.id == departmentId}"></option>
-        </select>
-        <select name="categoryId" onchange="this.form.submit()">
-            <option value="">Όλες οι κατηγορίες βλάβης</option>
-            <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}" th:selected="${c.id == categoryId}"></option>
-        </select>
-
-        <a th:if="${statusFilterActive or priority != null or departmentId != null or categoryId != null or scope != 'assigned' or not #strings.isEmpty(description)}"
-           th:href="@{/tickets}" class="btn">Καθαρισμός φίλτρων</a>
-
-        <input type="search" name="description" id="ticket-description-search" class="filters-search-full"
-               placeholder="Αναζήτηση με βάση την περίληψη..." th:value="${description}" autocomplete="off">
+        <a th:if="${statusFilterActive or priority != null or not #strings.isEmpty(query)}"
+           th:href="@{/tickets(scope=${scopeParam})}" class="btn">Καθαρισμός φίλτρων</a>
     </form>
 
     <table class="ticket-table">
@@ -75,7 +69,7 @@
 
     <div class="pagination" th:if="${ticketPage.totalPages > 1}">
         <a th:each="i : ${#numbers.sequence(0, ticketPage.totalPages - 1)}"
-           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${statusParam}, priority=${priority}, departmentId=${departmentId}, categoryId=${categoryId}, scope=${scopeParam}, description=${description})}"
+           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${statusParam}, priority=${priority}, scope=${scopeParam}, query=${query})}"
            th:text="${i + 1}"
            th:classappend="${i == ticketPage.number} ? ' active'"
            class="page-link"></a>
@@ -123,6 +117,7 @@
             <div class="form-group">
                 <label for="action-modal-comment" id="action-modal-comment-label">Σχόλιο</label>
                 <textarea id="action-modal-comment" name="commentText" required="required"></textarea>
+                <button type="button" class="resolution-suggestion" id="action-modal-suggestion">✓ Επιλύθηκε</button>
             </div>
         </div>
         <div class="modal-footer">
@@ -141,12 +136,6 @@
     </div>
     <form th:object="${ticketCreateRequest}" th:action="@{/tickets}" method="post" class="ticket-form" autocomplete="off">
         <div class="modal-body">
-            <div class="form-group">
-                <label for="ct-summary">Τίτλος</label>
-                <input type="text" id="ct-summary" th:field="*{summary}" placeholder="Σύντομη περιγραφή του προβλήματος" autocomplete="off">
-                <span class="field-error" th:if="${#fields.hasErrors('summary')}" th:errors="*{summary}"></span>
-            </div>
-
             <div class="form-group">
                 <label for="ct-phone">Αριθμός τηλεφώνου <span class="required-mark">*</span></label>
                 <input type="text" id="ct-phone" th:field="*{phoneNumber}" required="required" autocomplete="off">
@@ -212,8 +201,14 @@
             </div>
 
             <div class="form-group">
-                <label for="ct-description">Λεπτομέρειες <span class="required-mark">*</span></label>
-                <textarea id="ct-description" th:field="*{description}" placeholder="Περιγράψτε το πρόβλημα αναλυτικά…" required="required" autocomplete="off"></textarea>
+                <label for="ct-summary">Τίτλος</label>
+                <input type="text" id="ct-summary" th:field="*{summary}" placeholder="Σύντομη περιγραφή του προβλήματος" autocomplete="off">
+                <span class="field-error" th:if="${#fields.hasErrors('summary')}" th:errors="*{summary}"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="ct-description">Λεπτομέρειες (προαιρετικό)</label>
+                <textarea id="ct-description" th:field="*{description}" placeholder="Περιγράψτε το πρόβλημα αναλυτικά…" autocomplete="off"></textarea>
                 <span class="field-error" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></span>
             </div>
 
