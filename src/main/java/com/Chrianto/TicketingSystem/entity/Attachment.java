@@ -16,6 +16,10 @@ public class Attachment {
     @JoinColumn(name = "ticket_id", nullable = false)
     private Ticket ticket;
 
+//    @ManyToOne
+//    @JoinColumn(name = "incident_report_id")
+//    private IncidentReport incidentReport; // nullable, new
+
     @ManyToOne
     @JoinColumn(name = "uploaded_by_id")
     private User uploadedBy;
@@ -31,4 +35,18 @@ public class Attachment {
     private Long fileSize; // bytes
 
     private LocalDateTime uploadedAt;
+
+//    @PrePersist
+//    @PreUpdate
+//    private void validateParent() {
+//        boolean hasTicket = ticket != null;
+//        boolean hasIncidentReport = incidentReport != null;
+//
+//        if (hasTicket == hasIncidentReport) {
+//            // both null, or both set — either way, invalid
+//            throw new IllegalStateException(
+//                    "Attachment must belong to exactly one of: Ticket, IncidentReport"
+//            );
+//        }
+//    }
 }

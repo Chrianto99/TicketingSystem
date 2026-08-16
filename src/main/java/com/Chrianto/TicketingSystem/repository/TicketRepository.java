@@ -10,9 +10,21 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
+
+    // Statistics: tickets created per day/month, from a given point forward.
+    // Native + date_trunc since this is Postgres-only already (see the Flyway
+    // migrations) and JPQL has no portable date-bucketing function.
+    @Query(value = "SELECT date_trunc('day', created_at) AS period, COUNT(*) " +
+            "FROM ticket WHERE created_at >= :from GROUP BY period ORDER BY period", nativeQuery = true)
+    List<Object[]> countCreatedByDay(@Param("from") LocalDateTime from);
+
+    @Query(value = "SELECT date_trunc('month', created_at) AS period, COUNT(*) " +
+            "FROM ticket WHERE created_at >= :from GROUP BY period ORDER BY period", nativeQuery = true)
+    List<Object[]> countCreatedByMonth(@Param("from") LocalDateTime from);
 
     @Query("SELECT t FROM Ticket t " +
            "LEFT JOIN t.assignedUser au " +

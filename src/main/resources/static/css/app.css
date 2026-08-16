@@ -36,6 +36,17 @@
     --radius: 8px;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.15);
+
+    /* Statistics charts — categorical slots 1/2/3 of the validated 8-hue palette
+       (blue/orange/aqua): the only three-slot subset that clears the CVD/contrast
+       gates all-pairs in both light and dark. --chart-sequential is the single
+       hue used for magnitude (ranked bar) charts, per "sequential = one hue". */
+    --chart-series-created: #2a78d6;
+    --chart-series-cancelled: #eb6834;
+    --chart-series-resolved: #1baf7a;
+    --chart-sequential: #2a78d6;
+    --chart-grid: var(--color-divider-subtle);
+    --chart-axis: var(--color-border);
 }
 
 /* Dark theme: JS (theme.js) sets data-theme on <html> before first paint, based on
@@ -74,6 +85,11 @@
 
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.55);
+
+    --chart-series-created: #3987e5;
+    --chart-series-cancelled: #d95926;
+    --chart-series-resolved: #199e70;
+    --chart-sequential: #3987e5;
 }
 
 * {
@@ -379,6 +395,27 @@ a:focus-visible {
 .filters-search-full {
     max-width: 40%;
     min-width: 200px;
+}
+
+.cleanup-panel {
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border);
+}
+
+.cleanup-panel h3 {
+    margin: 0 0 6px;
+}
+
+.cleanup-panel .filters {
+    align-items: center;
+    margin-top: 12px;
+    margin-bottom: 8px;
+}
+
+.cleanup-panel .filters label {
+    display: flex;
+    align-items: center;
 }
 
 /* Table */
@@ -1747,4 +1784,297 @@ dialog.modal-dialog::backdrop {
 .entity-menu-action-danger:hover {
     background: var(--priority-critical-bg);
     color: var(--priority-critical-text);
+}
+
+/* Statistics page */
+.stats-granularity {
+    display: flex;
+    gap: 6px;
+}
+
+.stats-granularity-btn {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 6px 12px;
+}
+
+.stats-granularity-btn:hover {
+    color: var(--color-text);
+}
+
+.stats-granularity-btn.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+}
+
+.chart-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.chart-card h3 {
+    margin: 0 0 14px;
+    font-size: 15px;
+}
+
+.chart-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+/* Legend: a short line-key per series, never a filled swatch box (these are
+   line marks) — text stays in the muted ink token, never the series color. */
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+
+.chart-legend-key {
+    width: 16px;
+    height: 2px;
+    border-radius: 1px;
+    flex-shrink: 0;
+}
+
+.chart-wrap {
+    position: relative;
+}
+
+.chart-status {
+    text-align: center;
+    padding: 40px 0;
+}
+
+.chart-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+}
+
+.chart-gridline {
+    stroke: var(--chart-grid);
+    stroke-width: 1;
+}
+
+.chart-axis-line {
+    stroke: var(--chart-axis);
+    stroke-width: 1;
+}
+
+.chart-axis-label {
+    fill: var(--color-text-muted);
+    font-size: 11px;
+}
+
+.chart-line {
+    fill: none;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.chart-dot {
+    stroke: var(--color-surface);
+    stroke-width: 2;
+}
+
+.chart-series-created { color: var(--chart-series-created); }
+.chart-series-cancelled { color: var(--chart-series-cancelled); }
+.chart-series-resolved { color: var(--chart-series-resolved); }
+
+/* Swatches (legend key, tooltip line-key) pick up their series color via
+   currentColor from whichever .chart-series-* class is also applied, so one
+   rule covers every series instead of one combinator per series. */
+.chart-legend-key,
+.chart-tooltip-line-key {
+    background-color: currentColor;
+}
+
+.chart-crosshair {
+    stroke: var(--color-text-muted);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    pointer-events: none;
+}
+
+.chart-hit-layer {
+    fill: transparent;
+    cursor: crosshair;
+}
+
+.chart-tooltip {
+    position: absolute;
+    z-index: 10;
+    pointer-events: none;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 8px 10px;
+    font-size: 12.5px;
+    min-width: 140px;
+    display: none;
+}
+
+/* Category share list: each category is a native <details> row so its
+   subcategory breakdown expands/collapses with the same disclosure pattern
+   used elsewhere in the app (categories/list.html's .subcategory-dropdown). */
+.share-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.share-row-group > summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 4px;
+    cursor: pointer;
+    list-style: none;
+    border-radius: var(--radius);
+}
+
+.share-row-group > summary:hover {
+    background: var(--color-surface-alt);
+}
+
+.share-row-group > summary::-webkit-details-marker,
+.share-row-group > summary::marker {
+    display: none;
+    content: "";
+}
+
+.share-row-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+    font-size: 10px;
+    transition: transform 0.15s ease;
+}
+
+.share-row-group[open] > summary .share-row-toggle {
+    transform: rotate(90deg);
+}
+
+.share-row-name {
+    width: 220px;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--color-text-muted);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.share-row-track {
+    flex: 1;
+    height: 18px;
+    background: var(--color-surface-alt);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.share-row-bar {
+    display: block;
+    height: 100%;
+    background: var(--chart-sequential);
+    border-radius: 4px;
+}
+
+.share-row-value {
+    width: 52px;
+    flex-shrink: 0;
+    font-size: 12.5px;
+    color: var(--color-text);
+}
+
+.share-subrows {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 4px 0 10px 44px;
+}
+
+.share-subrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.share-subrow .share-row-name {
+    width: 200px;
+    font-size: 12.5px;
+}
+
+.share-subrow .share-row-track {
+    height: 13px;
+}
+
+.share-subrow .share-row-bar {
+    opacity: 0.7;
+}
+
+.share-row-empty {
+    padding: 4px 0 10px 44px;
+    font-size: 12.5px;
+    color: var(--color-text-muted);
+}
+
+.chart-tooltip-title {
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 4px;
+}
+
+.chart-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: space-between;
+}
+
+.chart-tooltip-row-key {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-muted);
+}
+
+.chart-tooltip-line-key {
+    width: 10px;
+    height: 2px;
+    border-radius: 1px;
+    flex-shrink: 0;
+}
+
+.chart-tooltip-value {
+    font-weight: 600;
+    color: var(--color-text);
 }

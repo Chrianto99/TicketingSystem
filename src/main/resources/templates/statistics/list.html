@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <script th:replace="~{fragments/nav :: theme-init}"></script>
+    <title>Στατιστικά</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="icon" type="image/png" th:href="@{/img/favicon.png}">
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+<div th:replace="~{fragments/nav :: modals}"></div>
+
+<main class="page">
+    <div class="page-header">
+        <h1>Στατιστικά</h1>
+    </div>
+
+    <div class="modal-tabs" role="tablist">
+        <button type="button" class="modal-tab active" data-tab-target="stats-tab-tickets" role="tab" aria-selected="true">Tickets ανά Χρόνο</button>
+        <button type="button" class="modal-tab" data-tab-target="stats-tab-categories" role="tab" aria-selected="false">Κατηγορίες</button>
+    </div>
+
+    <div id="stats-tab-tickets" class="modal-tab-panel">
+        <div class="chart-card">
+            <div class="chart-card-header">
+                <div class="chart-legend" id="tickets-chart-legend"></div>
+                <div class="stats-granularity" role="group" aria-label="Χρονική κλίμακα">
+                    <button type="button" class="stats-granularity-btn active" data-granularity="daily">Ημερήσια (30 ημέρες)</button>
+                    <button type="button" class="stats-granularity-btn" data-granularity="monthly">Μηνιαία (12 μήνες)</button>
+                </div>
+            </div>
+            <div class="chart-wrap" id="tickets-chart-wrap">
+                <p class="field-label chart-status">Φόρτωση…</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="stats-tab-categories" class="modal-tab-panel" style="display:none;">
+        <div class="chart-card">
+            <h3>Ποσοστό Tickets ανά Κατηγορία Βλάβης</h3>
+            <p class="field-label">Ανοίξτε μια κατηγορία για να δείτε την κατανομή ανά υποκατηγορία.</p>
+            <div class="chart-wrap" id="categories-chart-wrap">
+                <p class="field-label chart-status">Φόρτωση…</p>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script th:src="@{/js/statistics.js}"></script>
+</body>
+</html>

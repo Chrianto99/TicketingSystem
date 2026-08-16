@@ -1,6 +1,7 @@
 package com.Chrianto.TicketingSystem.entity;
 
 import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
+import com.Chrianto.TicketingSystem.entity.enums.TicketSource;
 import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -33,13 +34,17 @@ public class Ticket {
     @ManyToOne @JoinColumn(name = "subcategory_id")
     private Subcategory subcategory;
 
-    private String callerName;
+//    @ManyToOne
+//    @JoinColumn(name = "incident_report_id")
+//    private IncidentReport incidentReport;
 
     @Enumerated(EnumType.STRING)
     private TicketStatus status;
 
     @Enumerated(EnumType.STRING)
     private TicketPriority priority;
+
+    private String callerName;
 
     private String phoneNumber;
 
@@ -54,6 +59,10 @@ public class Ticket {
 
     @Column(length = 2000)
     private String resolution;
+
+//    @Enumerated(EnumType.STRING)
+//    @Column(nullable = false)
+//    private TicketSource source;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

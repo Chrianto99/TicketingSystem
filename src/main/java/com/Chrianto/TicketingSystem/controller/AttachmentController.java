@@ -1,5 +1,6 @@
 package com.Chrianto.TicketingSystem.controller;
 
+import com.Chrianto.TicketingSystem.dto.response.AttachmentCleanupResponse;
 import com.Chrianto.TicketingSystem.dto.response.AttachmentDownload;
 import com.Chrianto.TicketingSystem.dto.response.AttachmentResponse;
 import com.Chrianto.TicketingSystem.entity.User;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -42,6 +44,19 @@ public class AttachmentController {
                                                   @AuthenticationPrincipal User currentUser) {
         attachmentService.deleteAttachment(attachmentId, currentUser);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/attachments/cleanup/preview")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AttachmentCleanupResponse> previewCleanup(@RequestParam int olderThanDays) {
+        return ResponseEntity.ok(attachmentService.previewCleanup(olderThanDays));
+    }
+
+    @PostMapping("/attachments/cleanup")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AttachmentCleanupResponse> cleanup(@RequestParam int olderThanDays,
+                                                               @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(attachmentService.cleanupOldAttachments(olderThanDays, currentUser));
     }
 
     @GetMapping("/attachments/{attachmentId}")

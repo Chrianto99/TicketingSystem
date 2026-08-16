@@ -1,11 +1,13 @@
 package com.Chrianto.TicketingSystem.service;
 
+import com.Chrianto.TicketingSystem.dto.response.AttachmentCleanupResponse;
 import com.Chrianto.TicketingSystem.dto.response.AttachmentDownload;
 import com.Chrianto.TicketingSystem.dto.response.AttachmentResponse;
 import com.Chrianto.TicketingSystem.entity.Attachment;
 import com.Chrianto.TicketingSystem.entity.Ticket;
 import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.entity.enums.TicketAction;
+import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
 import com.Chrianto.TicketingSystem.exception.EntityNotFoundException;
 import com.Chrianto.TicketingSystem.repository.AttachmentRepository;
 import com.Chrianto.TicketingSystem.repository.TicketRepository;
@@ -136,6 +138,51 @@ public class AttachmentService {
         List<Attachment> attachments = attachmentRepository.findByTicketId(ticketId);
         attachments.forEach(this::deleteFileQuietly);
         attachmentRepository.deleteAll(attachments);
+    }
+
+    private static final int CLEANUP_MIN_AGE_DAYS = 30;
+    private static final List<TicketStatus> CLEANUP_ELIGIBLE_STATUSES = List.of(TicketStatus.RESOLVED, TicketStatus.CANCELLED);
+
+    public AttachmentCleanupResponse previewCleanup(int olderThanDays) {
+        List<Attachment> eligible = findCleanupCandidates(olderThanDays);
+        return AttachmentCleanupResponse.builder()
+                .count(eligible.size())
+                .totalBytes(totalBytes(eligible))
+                .build();
+    }
+
+    // Purges attachments older than the given threshold, but only on tickets that
+    // are RESOLVED or CANCELLED — never touches anything still OPEN. Each deletion
+    // is logged to its ticket's history like a manual delete, so there's no silent
+    // gap in the audit trail months later.
+    @Transactional
+    public AttachmentCleanupResponse cleanupOldAttachments(int olderThanDays, User performedBy) {
+        List<Attachment> eligible = findCleanupCandidates(olderThanDays);
+        long freedBytes = totalBytes(eligible);
+
+        for (Attachment attachment : eligible) {
+            deleteFileQuietly(attachment);
+            ticketHistoryService.logHistory(attachment.getTicket(), performedBy, TicketAction.ATTACHMENT_REMOVED,
+                    null, null, attachment.getFileName() + " (αυτόματη εκκαθάριση παλαιών συνημμένων)");
+        }
+        attachmentRepository.deleteAll(eligible);
+
+        return AttachmentCleanupResponse.builder()
+                .count(eligible.size())
+                .totalBytes(freedBytes)
+                .build();
+    }
+
+    private List<Attachment> findCleanupCandidates(int olderThanDays) {
+        if (olderThanDays < CLEANUP_MIN_AGE_DAYS) {
+            throw new IllegalArgumentException("Η εκκαθάριση απαιτεί τουλάχιστον " + CLEANUP_MIN_AGE_DAYS + " ημέρες παλαιότητας");
+        }
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(olderThanDays);
+        return attachmentRepository.findEligibleForCleanup(cutoff, CLEANUP_ELIGIBLE_STATUSES);
+    }
+
+    private long totalBytes(List<Attachment> attachments) {
+        return attachments.stream().mapToLong(a -> a.getFileSize() != null ? a.getFileSize() : 0L).sum();
     }
 
     private void deleteFileQuietly(Attachment attachment) {
