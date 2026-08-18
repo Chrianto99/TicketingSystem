@@ -1,5 +1,6 @@
 package com.Chrianto.TicketingSystem.controller.view;
 
+import com.Chrianto.TicketingSystem.dto.request.CallbackTicketCreateRequest;
 import com.Chrianto.TicketingSystem.dto.request.CommentUpdateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketChangeStatusRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketCreateRequest;
@@ -9,6 +10,7 @@ import com.Chrianto.TicketingSystem.dto.response.CategoryResponse;
 import com.Chrianto.TicketingSystem.dto.response.DepartmentResponse;
 import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
+import com.Chrianto.TicketingSystem.entity.enums.TicketSource;
 import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
 import com.Chrianto.TicketingSystem.service.CategoryService;
 import com.Chrianto.TicketingSystem.service.DepartmentService;
@@ -54,12 +56,13 @@ public class TicketViewController {
     @GetMapping
     public String listTickets(@RequestParam(required = false) String status,
                                @RequestParam(required = false) TicketPriority priority,
+                               @RequestParam(required = false) TicketSource source,
                                @RequestParam(required = false) String scope,
                                @RequestParam(required = false) String query,
                                @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
                                @AuthenticationPrincipal User currentUser,
                                Model model) {
-        populateListData(model, resolveStatusFilter(status), priority, resolveScopeFilter(scope), query, currentUser, pageable);
+        populateListData(model, resolveStatusFilter(status), priority, source, resolveScopeFilter(scope), query, currentUser, pageable);
         populateCreateFormData(model, currentUser);
         return "tickets/list";
     }
@@ -70,6 +73,7 @@ public class TicketViewController {
                                 @RequestParam(defaultValue = "open") String action,
                                 @RequestParam(required = false) String status,
                                 @RequestParam(required = false) TicketPriority priority,
+                                @RequestParam(required = false) TicketSource source,
                                 @RequestParam(required = false) String scope,
                                 @RequestParam(required = false) String query,
                                 @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
@@ -80,11 +84,28 @@ public class TicketViewController {
                     "Απαιτείται υποκατηγορία για την επίλυση ενός ticket");
         }
         if (bindingResult.hasErrors()) {
-            populateListData(model, resolveStatusFilter(status), priority, resolveScopeFilter(scope), query, currentUser, pageable);
+            populateListData(model, resolveStatusFilter(status), priority, source, resolveScopeFilter(scope), query, currentUser, pageable);
             populateCreateFormData(model, currentUser);
             return "tickets/list";
         }
         ticketService.createTicket(req, currentUser);
+        return "redirect:/tickets";
+    }
+
+    // Bound to the same shared create-ticket form (see tickets/list.html) via a second
+    // submit button with formaction/formnovalidate — Spring binds by request-param
+    // name regardless of which object the form itself declares as th:object, so the
+    // department/category/etc fields the form also carries are simply ignored here.
+    @PostMapping("/callback")
+    public String createCallbackTicket(@Valid @ModelAttribute("callbackTicketCreateRequest") CallbackTicketCreateRequest req,
+                                        BindingResult bindingResult,
+                                        @AuthenticationPrincipal User currentUser,
+                                        RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/tickets";
+        }
+        ticketService.createCallbackTicket(req, currentUser);
         return "redirect:/tickets";
     }
 
@@ -213,7 +234,7 @@ public class TicketViewController {
         redirectAttributes.addFlashAttribute("errorMessage", message);
     }
 
-    private void populateListData(Model model, TicketStatus status, TicketPriority priority,
+    private void populateListData(Model model, TicketStatus status, TicketPriority priority, TicketSource source,
                                    String scope, String query, User currentUser, Pageable pageable) {
         Long assignedToUserId = "assigned".equals(scope) ? currentUser.getId() : null;
         if ("assigned".equals(scope)) {
@@ -221,7 +242,7 @@ public class TicketViewController {
         }
         model.addAttribute("hasUnseenAssignedTickets", notificationService.hasUnseenAssignedTickets(currentUser.getId()));
         model.addAttribute("ticketPage", ticketService.getAllTickets(status, priority,
-                null, assignedToUserId, query, pageable));
+                null, assignedToUserId, source, query, pageable));
         model.addAttribute("query", query);
         model.addAttribute("status", status);
         // status/scope are null here when the filter means "show everything" (needed for the
@@ -231,10 +252,12 @@ public class TicketViewController {
         model.addAttribute("statusParam", status == null ? "ALL" : status.name());
         model.addAttribute("statusFilterActive", status != TicketStatus.OPEN);
         model.addAttribute("priority", priority);
+        model.addAttribute("source", source);
         model.addAttribute("scope", scope);
         model.addAttribute("scopeParam", scope == null ? "all" : scope);
         model.addAttribute("statuses", TicketStatus.values());
         model.addAttribute("priorities", TicketPriority.values());
+        model.addAttribute("sources", TicketSource.values());
     }
 
     // No status param means the page was reached fresh (e.g. nav link) — default to OPEN.

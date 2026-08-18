@@ -17,7 +17,7 @@
 
 <main class="page">
     <div class="page-header">
-        <h1>Χρήστες</h1>
+        <div th:replace="~{fragments/nav :: admin-tabs('users')}"></div>
         <a th:href="@{/users/new}" class="btn btn-primary" sec:authorize="hasRole('ADMIN')">+ Νέος Χρήστης</a>
     </div>
 
@@ -36,13 +36,14 @@
             <th>Κατάσταση</th>
             <th>Email</th>
             <th>Τηλέφωνο</th>
+            <th>Εξειδίκευση</th>
         </tr>
         </thead>
         <tbody>
         <tr class="entity-card ticket-row"
             th:classappend="${!u.active} ? 'entity-card-inactive' : _"
             th:each="u : ${users}"
-            th:attr="data-user-id=${u.id},data-username=${u.username},data-email=${u.email},data-phone=${u.phoneNumber},data-role=${u.role},data-active=${u.active},data-scheduled-deletion=${u.scheduledDeletionAt},data-first-name=${u.firstName},data-last-name=${u.lastName}">
+            th:attr="data-user-id=${u.id},data-username=${u.username},data-email=${u.email},data-phone=${u.phoneNumber},data-role=${u.role},data-active=${u.active},data-scheduled-deletion=${u.scheduledDeletionAt},data-first-name=${u.firstName},data-last-name=${u.lastName},data-specialization=${u.specialization}">
             <td class="entity-name">
                 <span th:text="${u.username}"></span>
                 <span class="entity-name-full" th:if="${u.firstName != null or u.lastName != null}"
@@ -55,9 +56,10 @@
             </td>
             <td class="user-email" th:text="${u.email} ?: '—'"></td>
             <td class="user-email" th:text="${u.phoneNumber} ?: '—'"></td>
+            <td class="user-email" th:text="${u.specialization} ?: '—'"></td>
         </tr>
         <tr th:if="${users.isEmpty()}">
-            <td colspan="5" class="empty-state">Δεν υπάρχουν χρήστες ακόμα.</td>
+            <td colspan="6" class="empty-state">Δεν υπάρχουν χρήστες ακόμα.</td>
         </tr>
         </tbody>
     </table>
@@ -109,6 +111,10 @@
         <div class="field-row">
             <span class="field-label">Τηλέφωνο</span>
             <span id="user-modal-phone"></span>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Εξειδίκευση</span>
+            <span id="user-modal-specialization"></span>
         </div>
         <div class="field-row">
             <span class="field-label">Κατάσταση</span>

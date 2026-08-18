@@ -13,12 +13,12 @@ public class Attachment {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "ticket_id", nullable = false)
+    @JoinColumn(name = "ticket_id")
     private Ticket ticket;
 
-//    @ManyToOne
-//    @JoinColumn(name = "incident_report_id")
-//    private IncidentReport incidentReport; // nullable, new
+    @ManyToOne
+    @JoinColumn(name = "incident_report_id")
+    private IncidentReport incidentReport; // nullable, new
 
     @ManyToOne
     @JoinColumn(name = "uploaded_by_id")
@@ -36,17 +36,17 @@ public class Attachment {
 
     private LocalDateTime uploadedAt;
 
-//    @PrePersist
-//    @PreUpdate
-//    private void validateParent() {
-//        boolean hasTicket = ticket != null;
-//        boolean hasIncidentReport = incidentReport != null;
-//
-//        if (hasTicket == hasIncidentReport) {
-//            // both null, or both set — either way, invalid
-//            throw new IllegalStateException(
-//                    "Attachment must belong to exactly one of: Ticket, IncidentReport"
-//            );
-//        }
-//    }
+    @PrePersist
+    @PreUpdate
+    private void validateParent() {
+        boolean hasTicket = ticket != null;
+        boolean hasIncidentReport = incidentReport != null;
+
+        if (hasTicket == hasIncidentReport) {
+            // both null, or both set — either way, invalid
+            throw new IllegalStateException(
+                    "Attachment must belong to exactly one of: Ticket, IncidentReport"
+            );
+        }
+    }
 }

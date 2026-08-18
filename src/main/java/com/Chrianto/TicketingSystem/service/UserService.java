@@ -41,6 +41,7 @@ public class UserService {
         user.setPhoneNumber(req.getPhoneNumber());
         user.setFirstName(req.getFirstName());
         user.setLastName(req.getLastName());
+        user.setSpecialization(req.getSpecialization());
         user.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
         user.setRole(req.getRole());
 
@@ -64,6 +65,7 @@ public class UserService {
         user.setPhoneNumber(req.getPhoneNumber());
         user.setFirstName(req.getFirstName());
         user.setLastName(req.getLastName());
+        user.setSpecialization(req.getSpecialization());
         user = userRepository.save(user);
         return toResponse(user);
     }
@@ -152,6 +154,7 @@ public class UserService {
                 .phoneNumber(u.getPhoneNumber())
                 .firstName(u.getFirstName())
                 .lastName(u.getLastName())
+                .specialization(u.getSpecialization())
                 .role(u.getRole())
                 .active(u.isActive())
                 .scheduledDeletionAt(u.getScheduledDeletionAt())

@@ -34,9 +34,9 @@ public class Ticket {
     @ManyToOne @JoinColumn(name = "subcategory_id")
     private Subcategory subcategory;
 
-//    @ManyToOne
-//    @JoinColumn(name = "incident_report_id")
-//    private IncidentReport incidentReport;
+    @ManyToOne
+    @JoinColumn(name = "incident_report_id")
+    private IncidentReport incidentReport;
 
     @Enumerated(EnumType.STRING)
     private TicketStatus status;
@@ -60,9 +60,9 @@ public class Ticket {
     @Column(length = 2000)
     private String resolution;
 
-//    @Enumerated(EnumType.STRING)
-//    @Column(nullable = false)
-//    private TicketSource source;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TicketSource source;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

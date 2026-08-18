@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var nameEl = document.getElementById('user-modal-name');
     var emailEl = document.getElementById('user-modal-email');
     var phoneEl = document.getElementById('user-modal-phone');
+    var specializationEl = document.getElementById('user-modal-specialization');
     var statusEl = document.getElementById('user-modal-status');
     var deletionRow = document.getElementById('user-modal-deletion-row');
     var deletionEl = document.getElementById('user-modal-deletion');
@@ -44,7 +45,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 firstName: card.getAttribute('data-first-name'),
                 lastName: card.getAttribute('data-last-name'),
                 email: card.getAttribute('data-email'),
-                phoneNumber: card.getAttribute('data-phone')
+                phoneNumber: card.getAttribute('data-phone'),
+                specialization: card.getAttribute('data-specialization')
             });
         });
     });
@@ -78,6 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         emailEl.textContent = user.email || '—';
         phoneEl.textContent = user.phoneNumber || '—';
+        specializationEl.textContent = user.specialization || '—';
         statusEl.textContent = active ? 'Ενεργός' : 'Απενεργοποιημένος';
 
         if (!active && scheduledDeletion) {

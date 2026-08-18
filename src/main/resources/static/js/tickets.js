@@ -1,17 +1,26 @@
 document.addEventListener('DOMContentLoaded', function () {
     var STATUS_LABELS = { OPEN: 'Ανοιχτό', RESOLVED: 'Επιλύθηκε', CANCELLED: 'Ακυρώθηκε' };
     var PRIORITY_LABELS = { LOW: 'Χαμηλή', MEDIUM: 'Μεσαία', HIGH: 'Υψηλή' };
+    var SOURCE_LABELS = { MANUAL: 'Χειροκίνητο', INCIDENT: 'Από Συμβάν', CALLBACK: 'Επιστροφή Κλήσης' };
 
     var modal = document.getElementById('ticket-modal');
     var modalTitle = document.getElementById('modal-title');
     var modalStatusBadge = document.getElementById('modal-status-badge');
     var modalPriorityBadge = document.getElementById('modal-priority-badge');
+    var modalSourceBadge = document.getElementById('modal-source-badge');
     var modalMeta = document.getElementById('modal-meta');
     var modalBody = document.getElementById('modal-body');
     var modalFooter = document.getElementById('modal-footer');
     var currentUserId = document.body.getAttribute('data-current-user-id');
     var actionModal = document.getElementById('action-modal');
     var actionModalForm = document.getElementById('action-modal-form');
+
+    // Comments/history are fetched lazily, the first time their tab is opened,
+    // and then cached for the rest of this modal session — switching tabs back
+    // and forth never re-fetches. Reset whenever the modal is (re)opened.
+    var currentTicketId = null;
+    var commentsLoaded = false;
+    var historyLoaded = false;
 
     if (!modal) {
         return;
@@ -105,6 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
         modalTitle.textContent = 'Ticket #' + ticketId;
         modalStatusBadge.style.display = 'none';
         modalPriorityBadge.style.display = 'none';
+        modalSourceBadge.style.display = 'none';
         modalMeta.textContent = '';
         modalBody.innerHTML = '<p>Φόρτωση…</p>';
         modalFooter.innerHTML = '';
@@ -114,12 +124,15 @@ document.addEventListener('DOMContentLoaded', function () {
         headerMenu.removeAttribute('open');
         modal.showModal();
 
+        currentTicketId = ticketId;
+        commentsLoaded = false;
+        historyLoaded = false;
+
         Promise.all([
             fetch('/api/tickets/' + ticketId).then(handleResponse),
-            fetch('/api/tickets/' + ticketId + '/history').then(handleResponse),
             fetch('/api/tickets/' + ticketId + '/attachments').then(handleResponse)
         ]).then(function (results) {
-            renderTicket(results[0], results[1], results[2]);
+            renderTicket(results[0], results[1]);
             if (activeTab) {
                 activateTab(activeTab);
             }
@@ -136,64 +149,58 @@ document.addEventListener('DOMContentLoaded', function () {
         return response.json();
     }
 
-    function renderTicket(ticket, history, attachments) {
+    function renderTicket(ticket, attachments) {
         modalTitle.textContent = 'Ticket #' + ticket.id;
         modalStatusBadge.textContent = STATUS_LABELS[ticket.status] || ticket.status;
         modalStatusBadge.className = 'badge status-' + ticket.status;
         modalStatusBadge.style.display = '';
-        modalPriorityBadge.textContent = PRIORITY_LABELS[ticket.priority] || ticket.priority;
-        modalPriorityBadge.className = 'badge priority-' + ticket.priority;
-        modalPriorityBadge.style.display = '';
+        if (ticket.priority) {
+            modalPriorityBadge.textContent = PRIORITY_LABELS[ticket.priority] || ticket.priority;
+            modalPriorityBadge.className = 'badge priority-' + ticket.priority;
+            modalPriorityBadge.style.display = '';
+        } else {
+            modalPriorityBadge.style.display = 'none';
+        }
+        modalSourceBadge.textContent = SOURCE_LABELS[ticket.source] || ticket.source;
+        modalSourceBadge.className = 'badge source-' + ticket.source;
+        modalSourceBadge.style.display = '';
         modalMeta.textContent = 'Δημιουργήθηκε από ' + (ticket.creatorUsername || 'διαγραμμένο χρήστη') + ' ' + formatRelativeTime(ticket.createdAt);
 
         var html = '';
+        // Callback tickets are complete-or-delete, never have a history worth
+        // reviewing, and aren't expected to collect comments/attachments — so they
+        // skip the tab bar entirely and just show the info panel.
+        var isCallback = ticket.source === 'CALLBACK';
 
-        html += '<div class="modal-tabs" role="tablist">';
-        html += '<button type="button" class="modal-tab active" data-tab-target="td-tab-info" role="tab" aria-selected="true">Πληροφορίες</button>';
-        html += '<button type="button" class="modal-tab" data-tab-target="td-tab-comments" role="tab" aria-selected="false">Σχόλια</button>';
-        html += '<button type="button" class="modal-tab" data-tab-target="td-tab-history" role="tab" aria-selected="false">Ιστορικό</button>';
-        html += '</div>';
+        if (!isCallback) {
+            html += '<div class="modal-tabs" role="tablist">';
+            html += '<button type="button" class="modal-tab active" data-tab-target="td-tab-info" role="tab" aria-selected="true">Πληροφορίες</button>';
+            html += '<button type="button" class="modal-tab" data-tab-target="td-tab-comments" role="tab" aria-selected="false">Σχόλια</button>';
+            html += '<button type="button" class="modal-tab" data-tab-target="td-tab-history" role="tab" aria-selected="false">Ιστορικό</button>';
+            html += '</div>';
+        }
 
         html += '<div id="td-tab-info" class="modal-tab-panel">';
         html += '<h2 class="ticket-summary-title">' + escapeHtml(ticket.summary || '—') + '</h2>';
         html += '<div id="info-fields">' + infoFieldsHtml(ticket, attachments) + '</div>';
         html += '</div>';
 
-        html += '<div id="td-tab-history" class="modal-tab-panel" style="display:none;">';
-        if (!history.length) {
-            html += '<p class="field-label" style="text-align:center;">Δεν υπάρχει ιστορικό ακόμα.</p>';
-        } else {
-            html += '<div class="timeline">';
-            history.forEach(function (h) {
-                html += historyItemHtml(h);
-            });
-            html += '</div>';
-        }
-        html += '</div>';
+        if (!isCallback) {
+            // History and Comments are fetched on first activation (see activateTab)
+            // rather than up front — these two panels start empty.
+            html += '<div id="td-tab-history" class="modal-tab-panel" style="display:none;"></div>';
 
-        // A COMMENT_ADDED row with no commentId means the underlying comment was
-        // since deleted (see deleteComment/unlinkComment) — drop it from this tab
-        // while its entry still narrates the event on the History tab.
-        var comments = history.filter(function (h) { return h.action === 'COMMENT_ADDED' && h.commentId; }).reverse();
-        html += '<div id="td-tab-comments" class="modal-tab-panel" style="display:none;">';
-        if (ticket.status === 'OPEN') {
-            html += composeCommentHtml(ticket.id);
-        }
-        if (!comments.length) {
-            html += '<p class="field-label" style="text-align:center;">Δεν υπάρχουν σχόλια ακόμα.</p>';
-        } else {
-            html += '<div class="timeline">';
-            comments.forEach(function (h) {
-                html += commentTabItemHtml(h, ticket.id);
-            });
+            html += '<div id="td-tab-comments" class="modal-tab-panel" style="display:none;">';
+            if (ticket.status === 'OPEN') {
+                html += composeCommentHtml(ticket.id);
+            }
+            html += '<div id="comments-list"></div>';
             html += '</div>';
         }
-        html += '</div>';
 
         modalBody.innerHTML = html;
         wireReassign();
         wireResolveForm(ticket);
-        wireCommentTabEdits(ticket.id);
         wireCommentCompose(ticket.id);
         wireModalTabs();
         wireAttachments(ticket.id);
@@ -202,6 +209,49 @@ document.addEventListener('DOMContentLoaded', function () {
         modalFooter.innerHTML = actionAreaHtml(ticket);
         modalFooter.style.display = '';
         wireActionButtons(ticket);
+    }
+
+    // Fetched once per modal-open and cached in commentsLoaded/historyLoaded —
+    // switching tabs back and forth re-shows the cached render, it never re-fetches.
+    function loadHistory(ticketId) {
+        var panel = document.getElementById('td-tab-history');
+        panel.innerHTML = '<p class="field-label" style="text-align:center;">Φόρτωση…</p>';
+        fetch('/api/tickets/' + ticketId + '/history').then(handleResponse).then(function (history) {
+            historyLoaded = true;
+            if (!history.length) {
+                panel.innerHTML = '<p class="field-label" style="text-align:center;">Δεν υπάρχει ιστορικό ακόμα.</p>';
+                return;
+            }
+            var html = '<div class="timeline">';
+            history.forEach(function (h) {
+                html += historyItemHtml(h);
+            });
+            html += '</div>';
+            panel.innerHTML = html;
+        }).catch(function () {
+            panel.innerHTML = '<p class="field-label" style="text-align:center;">Αποτυχία φόρτωσης ιστορικού.</p>';
+        });
+    }
+
+    function loadComments(ticketId) {
+        var listContainer = document.getElementById('comments-list');
+        listContainer.innerHTML = '<p class="field-label" style="text-align:center;">Φόρτωση…</p>';
+        fetch('/api/tickets/' + ticketId + '/comments').then(handleResponse).then(function (comments) {
+            commentsLoaded = true;
+            if (!comments.length) {
+                listContainer.innerHTML = '<p class="field-label" style="text-align:center;">Δεν υπάρχουν σχόλια ακόμα.</p>';
+            } else {
+                var html = '<div class="timeline">';
+                comments.forEach(function (c) {
+                    html += commentTabItemHtml(c, ticketId);
+                });
+                html += '</div>';
+                listContainer.innerHTML = html;
+            }
+            wireCommentTabEdits(ticketId);
+        }).catch(function () {
+            listContainer.innerHTML = '<p class="field-label" style="text-align:center;">Αποτυχία φόρτωσης σχολίων.</p>';
+        });
     }
 
     // "⋮" header menu: Επεξεργασία (edit info, any logged-in user) and Ακύρωση Ticket
@@ -242,26 +292,67 @@ document.addEventListener('DOMContentLoaded', function () {
         } : null;
     }
 
+    // Incident-derived tickets (source === 'INCIDENT') never collected caller/phone/
+    // department/category — those inputs don't exist on IncidentTicketCreateRequest —
+    // so they get a different field set instead of showing empty manual-ticket fields.
+    // Assignee/resolution/attachments are identical either way and stay factored out
+    // so wireReassign()/wireResolveForm()/wireAttachments() keep working unchanged.
     function infoFieldsHtml(ticket, attachments) {
         var html = '';
 
-        html += fieldBlock('Όνομα καλούντος', escapeHtml(ticket.callerName || '—'));
-        html += fieldBlock('Αριθμός τηλεφώνου', escapeHtml(ticket.phoneNumber || '—'));
-        html += fieldBlock('Τμήμα', escapeHtml(ticket.departmentName || '—'));
-        if (ticket.ipAddress) {
-            html += fieldBlock('Διεύθυνση IP', escapeHtml(ticket.ipAddress));
+        if (ticket.source === 'INCIDENT') {
+            html += fieldBlock('Δημιουργός', escapeHtml(ticket.creatorUsername || 'διαγραμμένο χρήστη'));
+
+            var incidentLabel = ticket.incidentSubject || ('Συμβάν #' + ticket.incidentReportId);
+            var incidentValue = ticket.incidentReportId
+                ? '<a href="/incidents/' + ticket.incidentReportId + '">' + escapeHtml(incidentLabel) + '</a>'
+                : '—';
+            html += fieldBlock('Σχετικό Συμβάν', incidentValue);
+        } else if (ticket.source === 'CALLBACK') {
+            html += fieldBlock('Όνομα καλούντος', escapeHtml(ticket.callerName || '—'));
+            html += fieldBlock('Αριθμός τηλεφώνου', escapeHtml(ticket.phoneNumber || '—'));
+        } else {
+            html += fieldBlock('Όνομα καλούντος', escapeHtml(ticket.callerName || '—'));
+            html += fieldBlock('Αριθμός τηλεφώνου', escapeHtml(ticket.phoneNumber || '—'));
+            html += fieldBlock('Τμήμα', escapeHtml(ticket.departmentName || '—'));
+            if (ticket.ipAddress) {
+                html += fieldBlock('Διεύθυνση IP', escapeHtml(ticket.ipAddress));
+            }
+
+            var categoryValue = ticket.category
+                ? ticket.category + (ticket.subcategory ? ' → ' + ticket.subcategory : '')
+                : '—';
+            html += fieldBlock('Κατηγορία Βλάβης', escapeHtml(categoryValue));
         }
 
-        var categoryValue = ticket.category + (ticket.subcategory ? ' → ' + ticket.subcategory : '');
-        html += fieldBlock('Κατηγορία Βλάβης', escapeHtml(categoryValue));
+        html += assigneeFieldHtml(ticket);
+        html += fieldBlock('Λεπτομέρειες', escapeHtml(ticket.description || '—'));
+        // Callback tickets skip Λύση — there's no resolve-with-text flow (see the
+        // footer action button instead, which deletes the ticket outright).
+        if (ticket.source !== 'CALLBACK') {
+            html += resolutionFieldHtml(ticket);
+        }
 
+        if (ticket.source === 'INCIDENT') {
+            html += fieldBlock('Δημιουργήθηκε', formatDate(ticket.createdAt));
+            html += fieldBlock('Ενημερώθηκε', formatDate(ticket.updatedAt));
+        }
+
+        if (ticket.source !== 'CALLBACK') {
+            html += attachmentsFieldHtml(attachments);
+        }
+
+        return html;
+    }
+
+    function assigneeFieldHtml(ticket) {
         var assigneeValue = '<div class="assignee-view" id="assignee-view">';
         assigneeValue += '<span id="td-assignee">' + escapeHtml(ticket.assignedUsername || 'Χωρίς ανάθεση') + '</span>';
         if (ticket.status === 'OPEN') {
             assigneeValue += '<button type="button" class="btn btn-sm" id="td-reassign-toggle">Ανάθεση σε</button>';
         }
         assigneeValue += '</div>';
-        html += fieldBlock('Ανατέθηκε σε', assigneeValue);
+        var html = fieldBlock('Ανατέθηκε σε', assigneeValue);
 
         if (ticket.status === 'OPEN') {
             var csrfInputForReassign = document.querySelector('#create-ticket-modal input[name="_csrf"]');
@@ -274,16 +365,17 @@ document.addEventListener('DOMContentLoaded', function () {
             html += '<button type="button" class="btn btn-sm" id="td-reassign-cancel">Άκυρο</button>';
             html += '</form>';
         }
+        return html;
+    }
 
-        html += fieldBlock('Λεπτομέρειες', escapeHtml(ticket.description || '—'));
-
-        html += '<div class="field-label" style="margin-top:10px;">Λύση</div>';
+    function resolutionFieldHtml(ticket) {
+        var html = '<div class="field-label" style="margin-top:10px;">Λύση</div>';
         html += '<div class="description-block" id="resolution-view">' + escapeHtml(ticket.resolution || '—') + '</div>';
         if (ticket.status === 'OPEN') {
             html += '<form id="td-resolve-form" class="resolve-edit" style="display:none;">';
             html += '<textarea id="td-resolve-textarea" placeholder="Περιγράψτε τη λύση…">' + escapeHtml(ticket.resolution || '') + '</textarea>';
             html += '<button type="button" class="resolution-suggestion" id="td-resolve-suggestion">✓ Επιλύθηκε</button>';
-            if (!ticket.subcategoryId) {
+            if (!ticket.subcategoryId && ticket.source !== 'INCIDENT') {
                 html += '<select id="td-resolve-subcategory"><option value="">Φόρτωση…</option></select>';
             }
             html += '<div class="ticket-action-buttons">';
@@ -292,16 +384,18 @@ document.addEventListener('DOMContentLoaded', function () {
             html += '</div>';
             html += '</form>';
         }
+        return html;
+    }
 
-        html += '<div class="field-label attachments-heading" style="margin-top:10px;">';
+    function attachmentsFieldHtml(attachments) {
+        var html = '<div class="field-label attachments-heading" style="margin-top:10px;">';
         html += '<span>Επισυναπτόμενα</span>';
-        html += '<button type="button" class="icon-btn" id="td-attachment-toggle" title="Επισύναψη αρχείου" aria-label="Επισύναψη αρχείου">';
+        html += '<button type="button" class="icon-btn attachment-toggle-btn" id="td-attachment-toggle" title="Επισύναψη αρχείου" aria-label="Επισύναψη αρχείου">';
         html += '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>';
         html += '</button>';
         html += '</div>';
         html += '<input type="file" id="td-attachment-input" hidden>';
         html += '<div id="td-attachment-list">' + attachmentsHtml(attachments) + '</div>';
-
         return html;
     }
 
@@ -616,6 +710,13 @@ document.addEventListener('DOMContentLoaded', function () {
         modalBody.querySelectorAll('.modal-tab-panel').forEach(function (panel) {
             panel.style.display = panel.id === tabTarget ? '' : 'none';
         });
+
+        if (tabTarget === 'td-tab-comments' && !commentsLoaded) {
+            loadComments(currentTicketId);
+        }
+        if (tabTarget === 'td-tab-history' && !historyLoaded) {
+            loadHistory(currentTicketId);
+        }
     }
 
     function actionAreaHtml(ticket) {
@@ -624,7 +725,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (isOpen) {
             html += '<div class="ticket-action-buttons ticket-action-buttons-center">';
-            html += '<button type="button" class="btn btn-primary" id="ticket-resolve-btn">Επίλυση Ticket</button>';
+            if (ticket.source === 'CALLBACK') {
+                html += '<button type="button" class="btn btn-primary" id="ticket-resolve-callback-btn">✓ Ολοκλήρωση Callback</button>';
+            } else {
+                html += '<button type="button" class="btn btn-primary" id="ticket-resolve-btn">Επίλυση Ticket</button>';
+            }
             html += '</div>';
         } else {
             var isCancelled = ticket.status === 'CANCELLED';
@@ -645,7 +750,35 @@ document.addEventListener('DOMContentLoaded', function () {
     function wireActionButtons(ticket) {
         var isOpen = ticket.status === 'OPEN';
 
-        if (isOpen) {
+        if (isOpen && ticket.source === 'CALLBACK') {
+            document.getElementById('ticket-resolve-callback-btn').addEventListener('click', function () {
+                window.showConfirm('Ολοκλήρωση αυτού του callback; Το ticket θα διαγραφεί οριστικά — δεν χρειάζεται λύση.').then(function (ok) {
+                    if (!ok) {
+                        return;
+                    }
+                    var csrfInput = document.querySelector('#create-ticket-modal input[name="_csrf"]');
+                    var headers = {};
+                    if (csrfInput) {
+                        headers['X-CSRF-TOKEN'] = csrfInput.value;
+                    }
+                    fetch('/api/tickets/' + ticket.id + '/resolve-callback', { method: 'PATCH', headers: headers })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                return response.json().catch(function () {
+                                    return {};
+                                }).then(function (body) {
+                                    throw new Error(body.error || Object.values(body)[0] || ('HTTP ' + response.status));
+                                });
+                            }
+                            modal.close();
+                            window.location.reload();
+                        })
+                        .catch(function (err) {
+                            window.showError('Αποτυχία ολοκλήρωσης callback: ' + err.message);
+                        });
+                });
+            });
+        } else if (isOpen) {
             document.getElementById('ticket-resolve-btn').addEventListener('click', function () {
                 activateTab('td-tab-info');
                 document.getElementById('resolution-view').style.display = 'none';
@@ -888,33 +1021,33 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function commentTabItemHtml(h, ticketId) {
-        var performer = escapeHtml(h.performedByUsername || 'Διαγραμμένος χρήστης');
-        var canEditComment = h.commentId && currentUserId && String(h.performedById) === currentUserId;
+    function commentTabItemHtml(c, ticketId) {
+        var performer = escapeHtml(c.authorUsername || 'Διαγραμμένος χρήστης');
+        var canEditComment = c.id && currentUserId && String(c.authorId) === currentUserId;
 
         var itemHtml = '<div class="timeline-item timeline-item-plain">';
         itemHtml += '<p class="timeline-text">' + performer + ' σχολίασε:</p>';
-        itemHtml += '<div class="timeline-quote-wrap" id="ct-quote-view-' + h.commentId + '">';
-        itemHtml += '<p class="timeline-quote">“' + escapeHtml(h.commentText) + '”</p>';
+        itemHtml += '<div class="timeline-quote-wrap" id="ct-quote-view-' + c.id + '">';
+        itemHtml += '<p class="timeline-quote">“' + escapeHtml(c.text) + '”</p>';
         if (canEditComment) {
-            itemHtml += '<button type="button" class="icon-btn comment-tab-edit-toggle" data-comment-id="' + h.commentId + '" title="Επεξεργασία σχολίου">✎</button>';
-            itemHtml += '<button type="button" class="icon-btn comment-tab-delete" data-comment-id="' + h.commentId + '" title="Διαγραφή σχολίου">🗑</button>';
+            itemHtml += '<button type="button" class="icon-btn comment-tab-edit-toggle" data-comment-id="' + c.id + '" title="Επεξεργασία σχολίου">✎</button>';
+            itemHtml += '<button type="button" class="icon-btn comment-tab-delete" data-comment-id="' + c.id + '" title="Διαγραφή σχολίου">🗑</button>';
         }
         itemHtml += '</div>';
         if (canEditComment) {
             var csrfInputForComment = document.querySelector('#create-ticket-modal input[name="_csrf"]');
             var commentCsrfToken = csrfInputForComment ? csrfInputForComment.value : '';
-            itemHtml += '<form id="ct-comment-edit-' + h.commentId + '" class="comment-edit-form" method="post" ' +
-                'action="/tickets/' + ticketId + '/comments/' + h.commentId + '/edit" style="display:none;">';
+            itemHtml += '<form id="ct-comment-edit-' + c.id + '" class="comment-edit-form" method="post" ' +
+                'action="/tickets/' + ticketId + '/comments/' + c.id + '/edit" style="display:none;">';
             itemHtml += '<input type="hidden" name="_csrf" value="' + escapeHtml(commentCsrfToken) + '">';
-            itemHtml += '<textarea name="text" required="required">' + escapeHtml(h.commentText) + '</textarea>';
+            itemHtml += '<textarea name="text" required="required">' + escapeHtml(c.text) + '</textarea>';
             itemHtml += '<div class="ticket-action-buttons">';
-            itemHtml += '<button type="button" class="btn btn-sm comment-tab-edit-cancel" data-comment-id="' + h.commentId + '">Άκυρο</button>';
+            itemHtml += '<button type="button" class="btn btn-sm comment-tab-edit-cancel" data-comment-id="' + c.id + '">Άκυρο</button>';
             itemHtml += '<button type="submit" class="btn btn-primary btn-sm">Αποθήκευση</button>';
             itemHtml += '</div>';
             itemHtml += '</form>';
         }
-        itemHtml += '<p class="timeline-time">' + formatDate(h.timestamp) + '</p>';
+        itemHtml += '<p class="timeline-time">' + formatDate(c.timestamp) + '</p>';
         itemHtml += '</div>';
         return itemHtml;
     }

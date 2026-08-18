@@ -1,6 +1,7 @@
 package com.Chrianto.TicketingSystem.dto.response;
 
 import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
+import com.Chrianto.TicketingSystem.entity.enums.TicketSource;
 import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
 import lombok.*;
 
@@ -27,6 +28,9 @@ public class TicketResponse {
     private String summary;
     private String description;
     private String resolution;
+    private TicketSource source;
+    private Long incidentReportId;
+    private String incidentSubject;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

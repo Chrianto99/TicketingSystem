@@ -13,7 +13,7 @@
 
 <main class="page">
     <div class="page-header">
-        <h1>Κατηγορίες Βλάβης</h1>
+        <div th:replace="~{fragments/nav :: admin-tabs('categories')}"></div>
     </div>
 
     <form th:object="${categoryRequest}" method="post" th:action="@{/categories}" class="filters" sec:authorize="hasRole('ADMIN')">

@@ -2,6 +2,7 @@ package com.Chrianto.TicketingSystem.repository;
 
 import com.Chrianto.TicketingSystem.entity.Ticket;
 import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
+import com.Chrianto.TicketingSystem.entity.enums.TicketSource;
 import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +15,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
+
+    List<Ticket> findByIncidentReportIdOrderByCreatedAtDesc(Long incidentReportId);
 
     // Statistics: tickets created per day/month, from a given point forward.
     // Native + date_trunc since this is Postgres-only already (see the Flyway
@@ -35,6 +38,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
            "AND (:priority IS NULL OR t.priority = :priority) " +
            "AND (:createdByUserId IS NULL OR t.creator.id = :createdByUserId) " +
            "AND (:assignedToUserId IS NULL OR t.assignedUser.id = :assignedToUserId) " +
+           "AND (:source IS NULL OR t.source = :source) " +
            "AND (:query IS NULL " +
            "OR LOWER(t.summary) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
            "OR LOWER(au.username) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
@@ -45,6 +49,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
                          @Param("priority") TicketPriority priority,
                          @Param("createdByUserId") Long createdByUserId,
                          @Param("assignedToUserId") Long assignedToUserId,
+                         @Param("source") TicketSource source,
                          @Param("query") String query,
                          Pageable pageable);
 

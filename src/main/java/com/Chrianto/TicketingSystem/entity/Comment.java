@@ -16,9 +16,9 @@ public class Comment {
     @JoinColumn(name = "ticket_id")
     private Ticket ticket; // nullable now
 
-//    @ManyToOne
-//    @JoinColumn(name = "incident_report_id")
-//    private IncidentReport incidentReport; // nullable, new
+    @ManyToOne
+    @JoinColumn(name = "incident_report_id")
+    private IncidentReport incidentReport; // nullable, new
 
     @ManyToOne
     @JoinColumn(name = "author_id")
@@ -29,17 +29,17 @@ public class Comment {
 
     private LocalDateTime timestamp;
 //
-//    @PrePersist
-//    @PreUpdate
-//    private void validateParent() {
-//        boolean hasTicket = ticket != null;
-//        boolean hasIncidentReport = incidentReport != null;
-//
-//        if (hasTicket == hasIncidentReport) {
-//            // both null, or both set — either way, invalid
-//            throw new IllegalStateException(
-//                    "Comment must belong to exactly one of: Ticket, IncidentReport"
-//            );
-//        }
-//    }
+    @PrePersist
+    @PreUpdate
+    private void validateParent() {
+        boolean hasTicket = ticket != null;
+        boolean hasIncidentReport = incidentReport != null;
+
+        if (hasTicket == hasIncidentReport) {
+            // both null, or both set — either way, invalid
+            throw new IllegalStateException(
+                    "Comment must belong to exactly one of: Ticket, IncidentReport"
+            );
+        }
+    }
 }

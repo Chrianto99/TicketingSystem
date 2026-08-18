@@ -6,7 +6,15 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface CommentRepository extends JpaRepository<Comment, Long> {
+
+    // Newest first, matching how the comments tab has always displayed them.
+    List<Comment> findByTicketIdOrderByTimestampDescIdDesc(Long ticketId);
+
+    // Oldest first — the incident detail page reads like a chat log, newest at the bottom.
+    List<Comment> findByIncidentReportIdOrderByTimestampAscIdAsc(Long incidentReportId);
 
     void deleteByTicketId(Long ticketId);
 

@@ -22,7 +22,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('p-first-name'),
         document.getElementById('p-last-name'),
         document.getElementById('p-email'),
-        document.getElementById('p-phone')
+        document.getElementById('p-phone'),
+        document.getElementById('p-specialization')
     ];
 
     editBtn.addEventListener('click', function () {

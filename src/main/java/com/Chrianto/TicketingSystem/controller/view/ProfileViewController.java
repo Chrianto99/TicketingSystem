@@ -86,6 +86,7 @@ public class ProfileViewController {
         req.setPhoneNumber(user.getPhoneNumber());
         req.setFirstName(user.getFirstName());
         req.setLastName(user.getLastName());
+        req.setSpecialization(user.getSpecialization());
         return req;
     }
 }

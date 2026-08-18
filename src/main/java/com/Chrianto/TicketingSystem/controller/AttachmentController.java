@@ -39,6 +39,18 @@ public class AttachmentController {
         return ResponseEntity.ok(attachmentService.getAttachmentsForTicket(ticketId));
     }
 
+    @PostMapping("/incident-reports/{incidentId}/attachments")
+    public ResponseEntity<AttachmentResponse> uploadAttachmentForIncident(@PathVariable Long incidentId,
+                                                                            @RequestParam("file") MultipartFile file,
+                                                                            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(attachmentService.uploadAttachmentForIncident(incidentId, file, currentUser));
+    }
+
+    @GetMapping("/incident-reports/{incidentId}/attachments")
+    public ResponseEntity<List<AttachmentResponse>> getAttachmentsForIncident(@PathVariable Long incidentId) {
+        return ResponseEntity.ok(attachmentService.getAttachmentsForIncident(incidentId));
+    }
+
     @DeleteMapping("/attachments/{attachmentId}")
     public ResponseEntity<Void> deleteAttachment(@PathVariable Long attachmentId,
                                                   @AuthenticationPrincipal User currentUser) {

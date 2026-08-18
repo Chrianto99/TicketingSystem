@@ -35,7 +35,11 @@
             <option value="">Όλες οι προτεραιότητες</option>
             <option th:each="p : ${priorities}" th:value="${p}" th:text="${p.displayName}" th:selected="${p == priority}"></option>
         </select>
-        <a th:if="${statusFilterActive or priority != null or not #strings.isEmpty(query)}"
+        <select name="source" onchange="this.form.submit()">
+            <option value="">Όλες οι προελεύσεις</option>
+            <option th:each="s : ${sources}" th:value="${s}" th:text="${s.displayName}" th:selected="${s == source}"></option>
+        </select>
+        <a th:if="${statusFilterActive or priority != null or source != null or not #strings.isEmpty(query)}"
            th:href="@{/tickets(scope=${scopeParam})}" class="btn">Καθαρισμός φίλτρων</a>
     </form>
 
@@ -46,6 +50,7 @@
             <th>Περίληψη</th>
             <th>Κατάσταση</th>
             <th>Προτεραιότητα</th>
+            <th>Προέλευση</th>
             <th>Τμήμα</th>
             <th>Ανατέθηκε σε</th>
             <th>Δημιουργήθηκε</th>
@@ -56,20 +61,24 @@
             <td class="ticket-id" th:text="'#' + ${ticket.id}"></td>
             <td class="ticket-desc" th:text="${ticket.summary}"></td>
             <td><span class="badge" th:classappend="'status-' + ${ticket.status}" th:text="${ticket.status.displayName}"></span></td>
-            <td><span class="badge" th:classappend="'priority-' + ${ticket.priority}" th:text="${ticket.priority.displayName}"></span></td>
+            <td>
+                <span class="badge" th:if="${ticket.priority}" th:classappend="'priority-' + ${ticket.priority}" th:text="${ticket.priority.displayName}"></span>
+                <span th:unless="${ticket.priority}">—</span>
+            </td>
+            <td><span class="badge" th:classappend="'source-' + ${ticket.source}" th:text="${ticket.source.displayName}"></span></td>
             <td th:text="${ticket.departmentName} ?: '—'"></td>
             <td th:text="${ticket.assignedUsername} ?: 'Χωρίς ανάθεση'"></td>
             <td th:text="${#temporals.format(ticket.createdAt, 'dd MMM yyyy, HH:mm')}"></td>
         </tr>
         <tr th:if="${ticketPage.content.isEmpty()}">
-            <td colspan="7" class="empty-state">Δεν βρέθηκαν tickets.</td>
+            <td colspan="8" class="empty-state">Δεν βρέθηκαν tickets.</td>
         </tr>
         </tbody>
     </table>
 
     <div class="pagination" th:if="${ticketPage.totalPages > 1}">
         <a th:each="i : ${#numbers.sequence(0, ticketPage.totalPages - 1)}"
-           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${statusParam}, priority=${priority}, scope=${scopeParam}, query=${query})}"
+           th:href="@{/tickets(page=${i}, size=${ticketPage.size}, status=${statusParam}, priority=${priority}, source=${source}, scope=${scopeParam}, query=${query})}"
            th:text="${i + 1}"
            th:classappend="${i == ticketPage.number} ? ' active'"
            class="page-link"></a>
@@ -83,6 +92,7 @@
                 <h2 id="modal-title">Ticket</h2>
                 <span id="modal-status-badge" class="badge"></span>
                 <span id="modal-priority-badge" class="badge"></span>
+                <span id="modal-source-badge" class="badge"></span>
             </div>
             <div class="modal-header-actions">
                 <details class="entity-menu" id="ticket-modal-menu">
@@ -187,7 +197,8 @@
             <div class="form-group">
                 <label for="ct-assignee">Αναθέστε αλλού <span class="required-mark">*</span></label>
                 <select id="ct-assignee" th:field="*{assignedUserId}" required="required">
-                    <option th:each="u : ${users}" th:value="${u.id}" th:text="${u.username}"></option>
+                    <option th:each="u : ${users}" th:value="${u.id}"
+                            th:text="${u.specialization} ? ${u.username} + ' (' + ${u.specialization} + ')' : ${u.username}"></option>
                 </select>
                 <span class="field-error" th:if="${#fields.hasErrors('assignedUserId')}" th:errors="*{assignedUserId}"></span>
             </div>
@@ -220,6 +231,8 @@
         </div>
         <div class="modal-footer">
             <button type="submit" name="action" value="open" class="btn btn-primary">Άνοιγμα Ticket</button>
+            <button type="submit" th:formaction="@{/tickets/callback}" formnovalidate="formnovalidate" class="btn"
+                    title="Ο καλών ζητάει μόνο επιστροφή κλήσης — αγνοεί τμήμα/κατηγορία/λύση">↺ Callback</button>
         </div>
     </form>
 </dialog>

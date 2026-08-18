@@ -13,7 +13,7 @@
 
 <main class="page">
     <div class="page-header">
-        <h1>Τμήματα</h1>
+        <div th:replace="~{fragments/nav :: admin-tabs('departments')}"></div>
     </div>
 
     <form th:object="${departmentCreateRequest}" method="post" th:action="@{/departments}" class="filters" sec:authorize="hasRole('ADMIN')">

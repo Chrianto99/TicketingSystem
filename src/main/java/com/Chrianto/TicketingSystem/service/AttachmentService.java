@@ -4,12 +4,14 @@ import com.Chrianto.TicketingSystem.dto.response.AttachmentCleanupResponse;
 import com.Chrianto.TicketingSystem.dto.response.AttachmentDownload;
 import com.Chrianto.TicketingSystem.dto.response.AttachmentResponse;
 import com.Chrianto.TicketingSystem.entity.Attachment;
+import com.Chrianto.TicketingSystem.entity.IncidentReport;
 import com.Chrianto.TicketingSystem.entity.Ticket;
 import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.entity.enums.TicketAction;
 import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
 import com.Chrianto.TicketingSystem.exception.EntityNotFoundException;
 import com.Chrianto.TicketingSystem.repository.AttachmentRepository;
+import com.Chrianto.TicketingSystem.repository.IncidentReportRepository;
 import com.Chrianto.TicketingSystem.repository.TicketRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class AttachmentService {
 
     private final AttachmentRepository attachmentRepository;
     private final TicketRepository ticketRepository;
+    private final IncidentReportRepository incidentReportRepository;
     private final TicketHistoryService ticketHistoryService;
 
     @Value("${app.attachments.dir:uploads}")
@@ -54,19 +57,42 @@ public class AttachmentService {
     }
 
     public AttachmentResponse uploadAttachment(Long ticketId, MultipartFile file, User currentUser) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
+
+        Attachment attachment = storeAttachment(file, "ticket-" + ticket.getId(), currentUser);
+        attachment.setTicket(ticket);
+        attachment = attachmentRepository.save(attachment);
+
+        ticketHistoryService.logHistory(ticket, currentUser, TicketAction.ATTACHMENT_ADDED, null, null, attachment.getFileName());
+
+        return toResponse(attachment);
+    }
+
+    public AttachmentResponse uploadAttachmentForIncident(Long incidentId, MultipartFile file, User currentUser) {
+        IncidentReport incident = incidentReportRepository.findById(incidentId)
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε αναφορά συμβάντος με id: " + incidentId));
+
+        Attachment attachment = storeAttachment(file, "incident-" + incident.getId(), currentUser);
+        attachment.setIncidentReport(incident);
+        attachmentRepository.save(attachment);
+
+        return toResponse(attachment);
+    }
+
+    // Shared storage step for both upload paths — writes the file to disk and
+    // builds the Attachment shell; the caller sets which parent (Ticket or
+    // IncidentReport) it belongs to before saving.
+    private Attachment storeAttachment(MultipartFile file, String storageDirName, User currentUser) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Το αρχείο δεν πρέπει να είναι κενό");
         }
-
-        Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
 
         String originalName = StringUtils.cleanPath(
                 file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()
                         ? "file"
                         : file.getOriginalFilename());
         String storedName = UUID.randomUUID().toString();
-        String storageDirName = "ticket-" + ticket.getId();
         String relativePath = storageDirName + "/" + storedName;
 
         try {
@@ -78,22 +104,23 @@ public class AttachmentService {
         }
 
         Attachment attachment = new Attachment();
-        attachment.setTicket(ticket);
         attachment.setUploadedBy(currentUser);
         attachment.setFileName(originalName);
         attachment.setFilePath(relativePath);
         attachment.setContentType(file.getContentType());
         attachment.setFileSize(file.getSize());
         attachment.setUploadedAt(LocalDateTime.now());
-        attachment = attachmentRepository.save(attachment);
-
-        ticketHistoryService.logHistory(ticket, currentUser, TicketAction.ATTACHMENT_ADDED, null, null, originalName);
-
-        return toResponse(attachment);
+        return attachment;
     }
 
     public List<AttachmentResponse> getAttachmentsForTicket(Long ticketId) {
         return attachmentRepository.findByTicketId(ticketId).stream()
+                .map(AttachmentService::toResponse)
+                .toList();
+    }
+
+    public List<AttachmentResponse> getAttachmentsForIncident(Long incidentId) {
+        return attachmentRepository.findByIncidentReportId(incidentId).stream()
                 .map(AttachmentService::toResponse)
                 .toList();
     }
@@ -109,7 +136,9 @@ public class AttachmentService {
         deleteFileQuietly(attachment);
         attachmentRepository.delete(attachment);
 
-        ticketHistoryService.logHistory(attachment.getTicket(), currentUser, TicketAction.ATTACHMENT_REMOVED, null, null, attachment.getFileName());
+        if (attachment.getTicket() != null) {
+            ticketHistoryService.logHistory(attachment.getTicket(), currentUser, TicketAction.ATTACHMENT_REMOVED, null, null, attachment.getFileName());
+        }
     }
 
     public AttachmentDownload downloadAttachment(Long attachmentId) {

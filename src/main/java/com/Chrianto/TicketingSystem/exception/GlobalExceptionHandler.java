@@ -3,6 +3,7 @@ package com.Chrianto.TicketingSystem.exception;
 import com.Chrianto.TicketingSystem.controller.AttachmentController;
 import com.Chrianto.TicketingSystem.controller.CategoryController;
 import com.Chrianto.TicketingSystem.controller.DepartmentController;
+import com.Chrianto.TicketingSystem.controller.IncidentReportController;
 import com.Chrianto.TicketingSystem.controller.StatisticsController;
 import com.Chrianto.TicketingSystem.controller.SubcategoryController;
 import com.Chrianto.TicketingSystem.controller.TicketController;
@@ -24,6 +25,7 @@ import java.util.Map;
         AttachmentController.class,
         CategoryController.class,
         DepartmentController.class,
+        IncidentReportController.class,
         StatisticsController.class,
         SubcategoryController.class,
         TicketController.class,

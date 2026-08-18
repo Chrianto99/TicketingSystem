@@ -7,9 +7,8 @@
     <div class="navbar-brand"><a th:href="@{/tickets}"><img th:src="@{/img/gepLogo.png}" alt="Ticketing System" class="navbar-logo"></a></div>
     <div class="navbar-links">
         <a th:href="@{/tickets}">Tickets</a>
-        <a th:href="@{/departments}">Τμήματα</a>
-        <a th:href="@{/categories}">Κατηγορίες Βλάβης</a>
-        <a th:href="@{/users}">Χρήστες</a>
+        <a th:href="@{/incidents}">Συμβάντα</a>
+        <a th:href="@{/departments}">Διαχείριση</a>
         <a th:href="@{/statistics}">Στατιστικά</a>
     </div>
     <div class="navbar-user">
@@ -25,6 +24,12 @@
         </form>
     </div>
 </nav>
+
+<div class="page-tabs" th:fragment="admin-tabs(active)">
+    <a th:href="@{/departments}" class="page-tab" th:classappend="${active == 'departments'} ? ' active'">Τμήματα</a>
+    <a th:href="@{/categories}" class="page-tab" th:classappend="${active == 'categories'} ? ' active'">Κατηγορίες Βλάβης</a>
+    <a th:href="@{/users}" class="page-tab" th:classappend="${active == 'users'} ? ' active'">Χρήστες</a>
+</div>
 
 <div th:fragment="modals">
     <div th:if="${errorMessage}" id="server-error-message" th:text="${errorMessage}" hidden="hidden"></div>

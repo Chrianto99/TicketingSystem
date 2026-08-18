@@ -13,6 +13,7 @@ public class UserResponse {
     private String phoneNumber;
     private String firstName;
     private String lastName;
+    private String specialization;
     private UserRole role;
     private boolean active;
     private LocalDateTime scheduledDeletionAt;

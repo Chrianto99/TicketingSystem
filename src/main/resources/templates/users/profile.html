@@ -53,6 +53,12 @@
         </div>
 
         <div class="form-group">
+            <label for="p-specialization">Εξειδίκευση (προαιρετικό)</label>
+            <input type="text" id="p-specialization" th:field="*{specialization}" th:disabled="${!#fields.hasErrors('*')}">
+            <span class="field-error" th:if="${#fields.hasErrors('specialization')}" th:errors="*{specialization}"></span>
+        </div>
+
+        <div class="form-group">
             <label for="p-role">Ρόλος</label>
             <input type="text" id="p-role" th:value="${user.role.displayName}" disabled="disabled">
         </div>

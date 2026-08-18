@@ -46,6 +46,12 @@
         </div>
 
         <div class="form-group">
+            <label for="u-specialization">Εξειδίκευση (προαιρετικό)</label>
+            <input type="text" id="u-specialization" th:field="*{specialization}">
+            <span class="field-error" th:if="${#fields.hasErrors('specialization')}" th:errors="*{specialization}"></span>
+        </div>
+
+        <div class="form-group">
             <label for="u-role">Ρόλος</label>
             <select id="u-role" th:field="*{role}">
                 <option th:each="r : ${roles}" th:value="${r}" th:text="${r.displayName}"></option>

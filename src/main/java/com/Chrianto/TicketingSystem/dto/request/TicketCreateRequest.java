@@ -36,4 +36,5 @@ public class TicketCreateRequest {
 
     private String resolution;
 
+
 }

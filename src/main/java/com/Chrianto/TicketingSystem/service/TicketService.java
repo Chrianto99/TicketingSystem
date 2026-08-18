@@ -1,16 +1,15 @@
 package com.Chrianto.TicketingSystem.service;
 
+import com.Chrianto.TicketingSystem.dto.request.CallbackTicketCreateRequest;
 import com.Chrianto.TicketingSystem.dto.request.CommentUpdateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketCreateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketChangeStatusRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketUpdateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketReassignRequest;
+import com.Chrianto.TicketingSystem.dto.response.CommentResponse;
 import com.Chrianto.TicketingSystem.dto.response.TicketResponse;
 import com.Chrianto.TicketingSystem.entity.*;
-import com.Chrianto.TicketingSystem.entity.enums.TicketAction;
-import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
-import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
-import com.Chrianto.TicketingSystem.entity.enums.UserRole;
+import com.Chrianto.TicketingSystem.entity.enums.*;
 import com.Chrianto.TicketingSystem.exception.EntityNotFoundException;
 import com.Chrianto.TicketingSystem.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -75,6 +74,7 @@ public class TicketService {
         ticket.setDescription(req.getDescription());
         ticket.setStatus(autoResolve ? TicketStatus.RESOLVED : TicketStatus.OPEN);
         ticket.setPriority(req.getPriority());
+        ticket.setSource(TicketSource.MANUAL);
         ticket.setCreatedAt(LocalDateTime.now());
         ticket.setUpdatedAt(LocalDateTime.now());
         if (autoResolve) {
@@ -93,6 +93,49 @@ public class TicketService {
         }
 
         return toResponse(ticket);
+    }
+
+    public TicketResponse createCallbackTicket(CallbackTicketCreateRequest req, User creator) {
+        User assignee = userRepository.findById(req.getAssignedUserId())
+                .orElseThrow(() -> new EntityNotFoundException("Ο ανάδοχος χρήστης δεν βρέθηκε"));
+
+        Ticket ticket = new Ticket();
+        ticket.setCreator(creator);
+        ticket.setAssignedUser(assignee);
+        ticket.setLastModifiedBy(creator);
+        ticket.setCallerName(req.getCallerName());
+        ticket.setPhoneNumber(req.getPhoneNumber());
+        ticket.setDescription(req.getDescription());
+        ticket.setSummary("Επιστροφή κλήσης σε " + req.getCallerName());
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setPriority(req.getPriority());
+        ticket.setSource(TicketSource.CALLBACK);
+        ticket.setCreatedAt(LocalDateTime.now());
+        ticket.setUpdatedAt(LocalDateTime.now());
+
+        ticket = ticketRepository.save(ticket);
+
+        ticketHistoryService.logHistory(ticket, creator, TicketAction.CREATED, null, null, null);
+        ticketHistoryService.logHistory(ticket, creator, TicketAction.ASSIGNED, assignee, null, null);
+        if (!assignee.getId().equals(creator.getId())) {
+            notificationService.notifyTicketAssigned(assignee.getId());
+        }
+
+        return toResponse(ticket);
+    }
+
+    // Callback tickets have no resolution step — "resolving" one just means the call
+    // was made, so it's deleted outright rather than marked RESOLVED.
+    @Transactional
+    public void resolveCallbackTicket(Long ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
+
+        if (ticket.getSource() != TicketSource.CALLBACK) {
+            throw new IllegalStateException("Μόνο tickets τύπου επιστροφής κλήσης μπορούν να ολοκληρωθούν με αυτόν τον τρόπο");
+        }
+
+        purgeTicket(ticketId);
     }
 
     public TicketResponse editTicket(Long ticketId, TicketUpdateRequest req, User performedBy){
@@ -239,7 +282,7 @@ public class TicketService {
             ticket.setSubcategory(subcategory);
         }
 
-        if (ticket.getSubcategory() == null) {
+        if (ticket.getSubcategory() == null && ticket.getSource() != TicketSource.INCIDENT) {
             throw new IllegalArgumentException("Απαιτείται υποκατηγορία για την επίλυση ενός ticket");
         }
 
@@ -375,9 +418,29 @@ public class TicketService {
         return toResponse(ticket);
     }
 
+    public List<CommentResponse> getCommentsForTicket(Long ticketId) {
+        ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε ticket με id: " + ticketId));
+        return commentRepository.findByTicketIdOrderByTimestampDescIdDesc(ticketId).stream()
+                .map(this::toCommentResponse)
+                .toList();
+    }
+
+    private CommentResponse toCommentResponse(Comment c) {
+        return CommentResponse.builder()
+                .id(c.getId())
+                .ticketId(c.getTicket() != null ? c.getTicket().getId() : null)
+                .incidentReportId(c.getIncidentReport() != null ? c.getIncidentReport().getId() : null)
+                .authorId(c.getUser() != null ? c.getUser().getId() : null)
+                .authorUsername(c.getUser() != null ? c.getUser().getUsername() : null)
+                .text(c.getText())
+                .timestamp(c.getTimestamp())
+                .build();
+    }
+
     public Page<TicketResponse> getAllTickets(TicketStatus status, TicketPriority priority, Long createdByUserId,
-                                               Long assignedToUserId, String query, Pageable pageable){
-        return ticketRepository.search(status, priority, createdByUserId, assignedToUserId, query, pageable)
+                                               Long assignedToUserId, TicketSource source, String query, Pageable pageable){
+        return ticketRepository.search(status, priority, createdByUserId, assignedToUserId, source, query, pageable)
                 .map(this::toResponse);
     }
 
@@ -390,6 +453,10 @@ public class TicketService {
             throw new IllegalStateException("Μόνο ακυρωμένα tickets μπορούν να διαγραφούν");
         }
 
+        purgeTicket(ticketId);
+    }
+
+    private void purgeTicket(Long ticketId) {
         attachmentService.deleteAttachmentsForTicket(ticketId);
         ticketHistoryService.deleteByTicketId(ticketId);
         commentRepository.deleteByTicketId(ticketId);
@@ -418,6 +485,9 @@ public class TicketService {
                 .summary(t.getSummary())
                 .description(t.getDescription())
                 .resolution(t.getResolution())
+                .source(t.getSource())
+                .incidentReportId(t.getIncidentReport() != null ? t.getIncidentReport().getId() : null)
+                .incidentSubject(t.getIncidentReport() != null ? t.getIncidentReport().getSubject() : null)
                 .createdAt(t.getCreatedAt())
                 .updatedAt(t.getUpdatedAt())
                 .build();

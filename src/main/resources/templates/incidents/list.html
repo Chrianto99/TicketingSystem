@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <script th:replace="~{fragments/nav :: theme-init}"></script>
+    <title>Συμβάντα</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="icon" type="image/png" th:href="@{/img/favicon.png}">
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+<div th:replace="~{fragments/nav :: modals}"></div>
+
+<main class="page">
+    <div class="page-header">
+        <h1>Συμβάντα</h1>
+    </div>
+
+    <button type="button" class="btn btn-primary" id="incident-create-toggle" style="margin-bottom:20px;">Νέα Αναφορά Συμβάντος</button>
+
+    <div class="chart-card" id="incident-create-card" hidden="hidden">
+        <div class="chart-card-header">
+            <h3>Νέα Αναφορά Συμβάντος</h3>
+        </div>
+        <form th:object="${incidentReportCreateRequest}" method="post" th:action="@{/incidents}" class="ticket-form">
+            <div class="form-group">
+                <label for="ic-subject">Θέμα (προαιρετικό)</label>
+                <input type="text" id="ic-subject" th:field="*{subject}">
+            </div>
+            <div class="form-group">
+                <label for="ic-priority">Προτεραιότητα<span class="required-mark">*</span></label>
+                <select id="ic-priority" th:field="*{priority}" required="required">
+                    <option value="">Επιλέξτε προτεραιότητα</option>
+                    <option th:each="p : ${priorities}" th:value="${p}" th:text="${p.displayName}"></option>
+                </select>
+                <span class="field-error" th:if="${#fields.hasErrors('priority')}" th:errors="*{priority}"></span>
+            </div>
+            <div class="form-group">
+                <label for="ic-description">Περιγραφή<span class="required-mark">*</span></label>
+                <textarea id="ic-description" th:field="*{description}" placeholder="Περιγραφή συμβάντος" required="required"></textarea>
+                <span class="field-error" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></span>
+            </div>
+            <div class="form-actions" style="justify-content:flex-end;">
+                <button type="button" id="incident-create-cancel" class="btn">Ακύρωση</button>
+                <button type="submit" class="btn btn-primary">Δημιουργία</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="filters">
+        <a th:href="@{/incidents}" class="btn" th:classappend="${statusFilter == null} ? ' btn-primary'">Όλα</a>
+        <a th:each="s : ${statuses}" th:href="@{/incidents(status=${s})}" class="btn"
+           th:classappend="${statusFilter == s} ? ' btn-primary'" th:text="${s.displayName}"></a>
+    </div>
+
+    <table class="entity-table">
+        <thead>
+        <tr>
+            <th>Θέμα</th>
+            <th>Κατάσταση</th>
+            <th>Προτεραιότητα</th>
+            <th>Δημιουργήθηκε από</th>
+            <th>Ημερομηνία</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="entity-card ticket-row" th:each="incident : ${incidents}" th:attr="data-incident-id=${incident.id}">
+            <td class="entity-name" th:text="${incident.subject} ?: '(Χωρίς θέμα)'"></td>
+            <td>
+                <span class="badge entity-status-badge status-active" th:if="${incident.status.name() == 'OPEN'}" th:text="${incident.status.displayName}"></span>
+                <span class="badge entity-status-badge status-inactive" th:unless="${incident.status.name() == 'OPEN'}" th:text="${incident.status.displayName}"></span>
+            </td>
+            <td>
+                <span class="badge" th:if="${incident.priority}" th:classappend="'priority-' + ${incident.priority}" th:text="${incident.priority.displayName}"></span>
+                <span th:unless="${incident.priority}">—</span>
+            </td>
+            <td th:text="${incident.creatorUsername} ?: '—'"></td>
+            <td th:text="${#temporals.format(incident.createdAt, 'dd/MM/yyyy HH:mm')}"></td>
+        </tr>
+        <tr th:if="${incidents.isEmpty()}">
+            <td colspan="5" class="empty-state">Δεν υπάρχουν συμβάντα ακόμα.</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="pagination" th:if="${totalPages > 1}">
+        <a th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+           th:href="@{/incidents(page=${i}, size=${pageSize}, status=${statusFilter})}"
+           th:text="${i + 1}"
+           th:classappend="${i == currentPage} ? ' active'"
+           class="page-link"></a>
+    </div>
+</main>
+
+<script th:src="@{/js/incidents.js}"></script>
+</body>
+</html>

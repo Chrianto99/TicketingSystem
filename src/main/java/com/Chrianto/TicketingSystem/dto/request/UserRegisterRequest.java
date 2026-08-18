@@ -21,6 +21,8 @@ public class UserRegisterRequest {
 
     private String lastName;
 
+    private String specialization;
+
     @NotNull(message = "Ο ρόλος είναι υποχρεωτικός")
     private UserRole role;
 }

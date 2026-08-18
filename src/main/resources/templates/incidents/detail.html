@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <script th:replace="~{fragments/nav :: theme-init}"></script>
+    <title th:text="'Συμβάν #' + ${incident.id}">Συμβάν</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="icon" type="image/png" th:href="@{/img/favicon.png}">
+</head>
+<body th:attr="data-current-user-id=${#authentication.principal.id}, data-incident-id=${incident.id}">
+<div th:replace="~{fragments/nav :: nav}"></div>
+<div th:replace="~{fragments/nav :: modals}"></div>
+
+<main class="page">
+    <div class="page-header">
+        <h1 th:text="${incident.subject} ?: ('Συμβάν #' + ${incident.id})"></h1>
+        <span class="badge entity-status-badge status-active" th:if="${incident.status.name() == 'OPEN'}" th:text="${incident.status.displayName}"></span>
+        <span class="badge entity-status-badge status-inactive" th:unless="${incident.status.name() == 'OPEN'}" th:text="${incident.status.displayName}"></span>
+        <span class="badge" th:if="${incident.priority}" th:classappend="'priority-' + ${incident.priority}" th:text="${incident.priority.displayName}"></span>
+    </div>
+    <p class="field-label">
+        Δημιουργήθηκε από <strong th:text="${incident.creatorUsername} ?: 'διαγραμμένο χρήστη'"></strong>
+        στις <span th:text="${#temporals.format(incident.createdAt, 'dd/MM/yyyy HH:mm')}"></span>
+    </p>
+
+    <!-- Info + edit -->
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <h3>Πληροφορίες</h3>
+            <div class="ticket-action-buttons">
+                <button type="button" id="ir-edit-btn" class="icon-btn" title="Επεξεργασία" aria-label="Επεξεργασία"
+                        th:hidden="${#fields.hasErrors('incidentReportUpdateRequest.*')}">&#9998;</button>
+                <form method="post" th:action="@{/incidents/{id}/close(id=${incident.id})}" th:if="${incident.status.name() == 'OPEN'}"
+                      data-confirm="Κλείσιμο αυτού του συμβάντος;">
+                    <button type="submit" class="btn btn-danger">Κλείσιμο Συμβάντος</button>
+                </form>
+                <form method="post" th:action="@{/incidents/{id}/reopen(id=${incident.id})}" th:unless="${incident.status.name() == 'OPEN'}">
+                    <button type="submit" class="btn btn-primary">↺ Επανάνοιγμα</button>
+                </form>
+            </div>
+        </div>
+        <form id="ir-edit-form" th:object="${incidentReportUpdateRequest}" method="post" th:action="@{/incidents/{id}/edit(id=${incident.id})}" class="ticket-form">
+            <div class="form-group">
+                <label for="ir-subject">Θέμα</label>
+                <input type="text" id="ir-subject" th:field="*{subject}" placeholder="Θέμα (προαιρετικό)" th:disabled="${!#fields.hasErrors('*')}">
+            </div>
+            <div class="form-group">
+                <label for="ir-description">Περιγραφή<span class="required-mark">*</span></label>
+                <textarea id="ir-description" th:field="*{description}" required="required" th:disabled="${!#fields.hasErrors('*')}"></textarea>
+                <span class="field-error" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></span>
+            </div>
+            <div class="form-group">
+                <label for="ir-priority">Προτεραιότητα<span class="required-mark">*</span></label>
+                <select id="ir-priority" th:field="*{priority}" required="required" th:disabled="${!#fields.hasErrors('*')}">
+                    <option th:each="p : ${priorities}" th:value="${p}" th:text="${p.displayName}"></option>
+                </select>
+                <span class="field-error" th:if="${#fields.hasErrors('priority')}" th:errors="*{priority}"></span>
+            </div>
+            <div class="form-actions">
+                <button type="submit" id="ir-save-btn" class="btn btn-primary" th:hidden="${!#fields.hasErrors('*')}">Αποθήκευση</button>
+                <button type="button" id="ir-cancel-btn" class="btn" th:hidden="${!#fields.hasErrors('*')}">Άκυρο</button>
+            </div>
+        </form>
+
+        <div class="field-label attachments-heading" style="margin-top:10px;">
+            <span>Επισυναπτόμενα</span>
+            <button type="button" class="icon-btn attachment-toggle-btn" id="ir-attachment-toggle" title="Επισύναψη αρχείου" aria-label="Επισύναψη αρχείου">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+            </button>
+        </div>
+        <input type="file" id="ir-attachment-input" hidden>
+        <p class="field-label" th:if="${attachments.isEmpty()}">Δεν υπάρχουν συνημμένα.</p>
+        <div class="attachment-list" th:unless="${attachments.isEmpty()}">
+            <span class="attachment-chip" th:each="a : ${attachments}">
+                <a th:href="@{/api/attachments/{id}(id=${a.id})}" th:text="'📎 ' + ${a.fileName}"></a>
+                <button type="button" class="attachment-delete" th:if="${a.uploadedById == #authentication.principal.id}"
+                        th:attr="data-attachment-id=${a.id}" title="Αφαίρεση συνημμένου">✕</button>
+            </span>
+        </div>
+    </div>
+
+    <!-- Comments / Related tickets -->
+    <div class="chart-card">
+        <div class="modal-tabs" role="tablist">
+            <button type="button" class="modal-tab" th:classappend="${#fields.hasErrors('incidentTicketCreateRequest.*')} ? '' : ' active'" data-tab-target="incident-tab-comments" role="tab" th:attr="aria-selected=${!#fields.hasErrors('incidentTicketCreateRequest.*')}">Σχόλια</button>
+            <button type="button" class="modal-tab" th:classappend="${#fields.hasErrors('incidentTicketCreateRequest.*')} ? ' active'" data-tab-target="incident-tab-tickets" role="tab" th:attr="aria-selected=${#fields.hasErrors('incidentTicketCreateRequest.*')}">Tickets</button>
+        </div>
+
+        <div id="incident-tab-comments" class="modal-tab-panel" th:style="${#fields.hasErrors('incidentTicketCreateRequest.*')} ? 'display:none;' : ''">
+            <p class="field-label" style="text-align:center;" th:if="${comments.isEmpty()}">Δεν υπάρχουν σχόλια ακόμα.</p>
+            <div class="timeline" th:unless="${comments.isEmpty()}">
+                <div class="timeline-item timeline-item-plain" th:each="c : ${comments}">
+                    <p class="timeline-text"><strong th:text="${c.authorUsername} ?: 'Διαγραμμένος χρήστης'"></strong> σχολίασε:</p>
+                    <p class="timeline-quote" th:text="'“' + ${c.text} + '”'"></p>
+                    <p class="timeline-time" th:text="${#temporals.format(c.timestamp, 'dd/MM/yyyy HH:mm')}"></p>
+                </div>
+            </div>
+
+            <form th:object="${incidentCommentCreateRequest}" method="post" th:action="@{/incidents/{id}/comments(id=${incident.id})}" class="ticket-form comment-compose" style="margin-top:20px;">
+                <div class="form-group">
+                    <textarea th:field="*{commentText}" placeholder="Γράψτε ένα σχόλιο…" required="required"></textarea>
+                    <span class="field-error" th:if="${#fields.hasErrors('commentText')}" th:errors="*{commentText}"></span>
+                </div>
+                <div class="ticket-action-buttons">
+                    <button type="submit" class="btn btn-success">Υποβολή</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="incident-tab-tickets" class="modal-tab-panel" th:style="${#fields.hasErrors('incidentTicketCreateRequest.*')} ? '' : 'display:none;'">
+            <table class="entity-table" th:unless="${relatedTickets.isEmpty()}">
+                <thead>
+                <tr>
+                    <th>Τίτλος</th>
+                    <th>Κατάσταση</th>
+                    <th>Ανατέθηκε σε</th>
+                    <th>Δημιουργήθηκε</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr class="entity-card ticket-row" th:each="t : ${relatedTickets}" th:attr="data-ticket-id=${t.id}">
+                    <td class="entity-name" th:text="${t.summary} ?: ('Ticket #' + ${t.id})"></td>
+                    <td><span class="badge" th:classappend="'status-' + ${t.status}" th:text="${t.status.displayName}"></span></td>
+                    <td th:text="${t.assignedUsername} ?: '—'"></td>
+                    <td th:text="${#temporals.format(t.createdAt, 'dd/MM/yyyy HH:mm')}"></td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="field-label" th:if="${relatedTickets.isEmpty()}">Δεν υπάρχουν tickets από αυτό το συμβάν ακόμα.</p>
+
+            <h3 style="margin-top:20px;">Δημιουργία Ticket από αυτό το Συμβάν</h3>
+            <form th:object="${incidentTicketCreateRequest}" method="post" th:action="@{/incidents/{id}/tickets(id=${incident.id})}" class="ticket-form">
+                <div class="form-group">
+                    <label for="it-assignee">Ανάδοχος<span class="required-mark">*</span></label>
+                    <select id="it-assignee" th:field="*{assignedUserId}" required="required">
+                        <option value="">Επιλέξτε χρήστη</option>
+                        <option th:each="u : ${users}" th:value="${u.id}"
+                                th:text="${u.specialization} ? ${u.username} + ' (' + ${u.specialization} + ')' : ${u.username}"></option>
+                    </select>
+                    <span class="field-error" th:if="${#fields.hasErrors('assignedUserId')}" th:errors="*{assignedUserId}"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="it-title">Τίτλος<span class="required-mark">*</span></label>
+                    <input type="text" id="it-title" th:field="*{title}" required="required">
+                    <span class="field-error" th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></span>
+                </div>
+                <div class="form-group">
+                    <label for="it-description">Περιγραφή (προαιρετικό)</label>
+                    <textarea id="it-description" th:field="*{description}"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Δημιουργία Ticket</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+
+<script th:src="@{/js/incidents.js}"></script>
+</body>
+</html>

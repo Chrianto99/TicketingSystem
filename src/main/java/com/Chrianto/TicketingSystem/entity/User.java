@@ -35,6 +35,8 @@ public class User implements UserDetails {
 
     private String lastName;
 
+    private String specialization;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;

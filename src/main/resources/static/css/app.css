@@ -33,6 +33,13 @@
     --priority-critical-bg: #fee2e2;
     --priority-critical-text: #b91c1c;
 
+    --source-manual-bg: #f1f5f9;
+    --source-manual-text: #475569;
+    --source-incident-bg: #ede9fe;
+    --source-incident-text: #6d28d9;
+    --source-callback-bg: #ccfbf1;
+    --source-callback-text: #0f766e;
+
     --radius: 8px;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.15);
@@ -82,6 +89,13 @@
     --priority-high-text: #fdba74;
     --priority-critical-bg: rgba(239, 68, 68, 0.18);
     --priority-critical-text: #fca5a5;
+
+    --source-manual-bg: rgba(148, 163, 184, 0.16);
+    --source-manual-text: #cbd5e1;
+    --source-incident-bg: rgba(139, 92, 246, 0.18);
+    --source-incident-text: #c4b5fd;
+    --source-callback-bg: rgba(45, 212, 191, 0.16);
+    --source-callback-text: #5eead4;
 
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.55);
@@ -393,8 +407,8 @@ a:focus-visible {
 }
 
 .filters-search-full {
-    max-width: 40%;
-    min-width: 200px;
+    max-width: 80%;
+    min-width: 400px;
 }
 
 .cleanup-panel {
@@ -494,6 +508,10 @@ a:focus-visible {
 .priority-LOW { background: var(--priority-low-bg); color: var(--priority-low-text); }
 .priority-MEDIUM { background: var(--priority-medium-bg); color: var(--priority-medium-text); }
 .priority-HIGH { background: var(--priority-high-bg); color: var(--priority-high-text); }
+
+.source-MANUAL { background: var(--source-manual-bg); color: var(--source-manual-text); }
+.source-INCIDENT { background: var(--source-incident-bg); color: var(--source-incident-text); }
+.source-CALLBACK { background: var(--source-callback-bg); color: var(--source-callback-text); }
 
 /* Pagination */
 .pagination {
@@ -1166,7 +1184,7 @@ dialog.modal-dialog::backdrop {
     color: var(--color-text);
 }
 
-#td-attachment-toggle {
+.attachment-toggle-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1177,12 +1195,12 @@ dialog.modal-dialog::backdrop {
     transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
-#td-attachment-toggle svg {
+.attachment-toggle-btn svg {
     width: 18px;
     height: 18px;
 }
 
-#td-attachment-toggle:hover {
+.attachment-toggle-btn:hover {
     border-color: var(--color-primary);
     box-shadow: 0 0 10px rgba(166, 25, 46, 0.45);
     transform: translateY(-1px);
