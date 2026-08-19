@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 public class CommentResponse {
     private Long id;
     private Long ticketId;
-    private Long incidentReportId;
+    private Long incidentId;
     private Long authorId;
     private String authorUsername;
     private String text;

@@ -35,8 +35,8 @@ public class Ticket {
     private Subcategory subcategory;
 
     @ManyToOne
-    @JoinColumn(name = "incident_report_id")
-    private IncidentReport incidentReport;
+    @JoinColumn(name = "incident_id")
+    private Incident incident;
 
     @Enumerated(EnumType.STRING)
     private TicketStatus status;

@@ -1,20 +1,17 @@
 package com.Chrianto.TicketingSystem.entity.enums;
 
-public enum TicketAction {
-    CREATED,
-    ASSIGNED,
-    REASSIGNED,
-    RESOLVED,
-    CANCELLED,
+public enum IncidentAction {
+    REPORTED,
+    CLOSED,
     REOPENED,
-    PRIORITY_CHANGED,
     INFO_CHANGED,
     COMMENT_ADDED,
     COMMENT_EDITED,
     COMMENT_REMOVED,
     ATTACHMENT_ADDED,
     ATTACHMENT_REMOVED,
-
-
-
+    TICKET_ASSIGNED,
+    TICKET_RESOLVED,
+    TICKET_CANCELLED,
+    TICKET_REOPENED
 }

@@ -1,15 +1,17 @@
 package com.Chrianto.TicketingSystem.controller.view;
 
+import com.Chrianto.TicketingSystem.dto.request.CommentUpdateRequest;
 import com.Chrianto.TicketingSystem.dto.request.IncidentCommentCreateRequest;
-import com.Chrianto.TicketingSystem.dto.request.IncidentReportCreateRequest;
-import com.Chrianto.TicketingSystem.dto.request.IncidentReportUpdateRequest;
+import com.Chrianto.TicketingSystem.dto.request.IncidentCreateRequest;
+import com.Chrianto.TicketingSystem.dto.request.IncidentUpdateRequest;
 import com.Chrianto.TicketingSystem.dto.request.IncidentTicketCreateRequest;
-import com.Chrianto.TicketingSystem.dto.response.IncidentReportResponse;
+import com.Chrianto.TicketingSystem.dto.response.IncidentResponse;
 import com.Chrianto.TicketingSystem.entity.User;
 import com.Chrianto.TicketingSystem.entity.enums.IncidentStatus;
 import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
 import com.Chrianto.TicketingSystem.service.AttachmentService;
-import com.Chrianto.TicketingSystem.service.IncidentReportService;
+import com.Chrianto.TicketingSystem.service.IncidentService;
+import com.Chrianto.TicketingSystem.service.TicketHistoryService;
 import com.Chrianto.TicketingSystem.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,13 +29,14 @@ import org.springframework.web.bind.annotation.*;
 @Controller
 @RequestMapping("/incidents")
 @RequiredArgsConstructor
-public class IncidentReportViewController {
+public class IncidentViewController {
 
     private static final int DEFAULT_PAGE_SIZE = 10;
 
-    private final IncidentReportService incidentReportService;
+    private final IncidentService incidentService;
     private final UserService userService;
     private final AttachmentService attachmentService;
+    private final TicketHistoryService ticketHistoryService;
 
     @InitBinder
     public void initBinder(WebDataBinder binder) {
@@ -42,10 +45,12 @@ public class IncidentReportViewController {
 
     @GetMapping
     public String listIncidents(@RequestParam(required = false) IncidentStatus status,
+                                 @RequestParam(required = false) TicketPriority priority,
+                                 @RequestParam(required = false) String query,
                                  @RequestParam(defaultValue = "0") int page,
                                  @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size,
                                  Model model) {
-        Page<IncidentReportResponse> incidentPage = incidentReportService.getAllIncidentReports(status,
+        Page<IncidentResponse> incidentPage = incidentService.getAllIncidents(status, priority, query,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
 
         model.addAttribute("incidents", incidentPage.getContent());
@@ -53,41 +58,44 @@ public class IncidentReportViewController {
         model.addAttribute("totalPages", Math.max(1, incidentPage.getTotalPages()));
         model.addAttribute("pageSize", size);
         model.addAttribute("statusFilter", status);
+        model.addAttribute("priorityFilter", priority);
+        model.addAttribute("query", query);
         model.addAttribute("statuses", IncidentStatus.values());
         model.addAttribute("priorities", TicketPriority.values());
-        if (!model.containsAttribute("incidentReportCreateRequest")) {
-            model.addAttribute("incidentReportCreateRequest", new IncidentReportCreateRequest());
+        if (!model.containsAttribute("incidentCreateRequest")) {
+            model.addAttribute("incidentCreateRequest", new IncidentCreateRequest());
         }
         return "incidents/list";
     }
 
     @PostMapping
-    public String createIncident(@Valid @ModelAttribute("incidentReportCreateRequest") IncidentReportCreateRequest req,
+    public String createIncident(@Valid @ModelAttribute("incidentCreateRequest") IncidentCreateRequest req,
                                   BindingResult bindingResult,
                                   @AuthenticationPrincipal User currentUser) {
         if (!bindingResult.hasErrors()) {
-            incidentReportService.createIncidentReport(req, currentUser);
+            incidentService.createIncident(req, currentUser);
         }
         return "redirect:/incidents";
     }
 
     @GetMapping("/{incidentId}")
     public String viewIncident(@PathVariable Long incidentId, Model model) {
-        var incident = incidentReportService.getIncidentReportById(incidentId);
+        var incident = incidentService.getIncidentById(incidentId);
 
         model.addAttribute("incident", incident);
-        model.addAttribute("comments", incidentReportService.getCommentsForIncident(incidentId));
-        model.addAttribute("relatedTickets", incidentReportService.getTicketsForIncident(incidentId));
+        model.addAttribute("comments", incidentService.getCommentsForIncident(incidentId));
+        model.addAttribute("relatedTickets", incidentService.getTicketsForIncident(incidentId));
         model.addAttribute("attachments", attachmentService.getAttachmentsForIncident(incidentId));
+        model.addAttribute("history", ticketHistoryService.getIncidentHistory(incidentId));
         model.addAttribute("users", userService.getAllUsers());
         model.addAttribute("priorities", TicketPriority.values());
 
-        if (!model.containsAttribute("incidentReportUpdateRequest")) {
-            IncidentReportUpdateRequest updateReq = new IncidentReportUpdateRequest();
+        if (!model.containsAttribute("incidentUpdateRequest")) {
+            IncidentUpdateRequest updateReq = new IncidentUpdateRequest();
             updateReq.setSubject(incident.getSubject());
             updateReq.setDescription(incident.getDescription());
             updateReq.setPriority(incident.getPriority());
-            model.addAttribute("incidentReportUpdateRequest", updateReq);
+            model.addAttribute("incidentUpdateRequest", updateReq);
         }
         if (!model.containsAttribute("incidentCommentCreateRequest")) {
             model.addAttribute("incidentCommentCreateRequest", new IncidentCommentCreateRequest());
@@ -100,23 +108,24 @@ public class IncidentReportViewController {
 
     @PostMapping("/{incidentId}/edit")
     public String editIncident(@PathVariable Long incidentId,
-                                @Valid @ModelAttribute("incidentReportUpdateRequest") IncidentReportUpdateRequest req,
-                                BindingResult bindingResult) {
+                                @Valid @ModelAttribute("incidentUpdateRequest") IncidentUpdateRequest req,
+                                BindingResult bindingResult,
+                                @AuthenticationPrincipal User currentUser) {
         if (!bindingResult.hasErrors()) {
-            incidentReportService.editIncidentReport(incidentId, req);
+            incidentService.editIncident(incidentId, req, currentUser);
         }
         return "redirect:/incidents/" + incidentId;
     }
 
     @PostMapping("/{incidentId}/close")
-    public String closeIncident(@PathVariable Long incidentId) {
-        incidentReportService.closeIncident(incidentId);
+    public String closeIncident(@PathVariable Long incidentId, @AuthenticationPrincipal User currentUser) {
+        incidentService.closeIncident(incidentId, currentUser);
         return "redirect:/incidents/" + incidentId;
     }
 
     @PostMapping("/{incidentId}/reopen")
-    public String reopenIncident(@PathVariable Long incidentId) {
-        incidentReportService.reopenIncident(incidentId);
+    public String reopenIncident(@PathVariable Long incidentId, @AuthenticationPrincipal User currentUser) {
+        incidentService.reopenIncident(incidentId, currentUser);
         return "redirect:/incidents/" + incidentId;
     }
 
@@ -126,8 +135,26 @@ public class IncidentReportViewController {
                               BindingResult bindingResult,
                               @AuthenticationPrincipal User currentUser) {
         if (!bindingResult.hasErrors()) {
-            incidentReportService.addComment(incidentId, req, currentUser);
+            incidentService.addComment(incidentId, req, currentUser);
         }
+        return "redirect:/incidents/" + incidentId;
+    }
+
+    @PostMapping("/{incidentId}/comments/{commentId}/edit")
+    public String editComment(@PathVariable Long incidentId, @PathVariable Long commentId,
+                               @Valid @ModelAttribute CommentUpdateRequest req,
+                               BindingResult bindingResult,
+                               @AuthenticationPrincipal User currentUser) {
+        if (!bindingResult.hasErrors()) {
+            incidentService.editComment(commentId, req, currentUser);
+        }
+        return "redirect:/incidents/" + incidentId;
+    }
+
+    @PostMapping("/{incidentId}/comments/{commentId}/delete")
+    public String deleteComment(@PathVariable Long incidentId, @PathVariable Long commentId,
+                                 @AuthenticationPrincipal User currentUser) {
+        incidentService.deleteComment(commentId, currentUser);
         return "redirect:/incidents/" + incidentId;
     }
 
@@ -137,7 +164,7 @@ public class IncidentReportViewController {
                                             BindingResult bindingResult,
                                             @AuthenticationPrincipal User currentUser) {
         if (!bindingResult.hasErrors()) {
-            incidentReportService.createTicketFromIncident(incidentId, req, currentUser);
+            incidentService.createTicketFromIncident(incidentId, req, currentUser);
         }
         return "redirect:/incidents/" + incidentId;
     }

@@ -262,7 +262,11 @@ document.addEventListener('DOMContentLoaded', function () {
         var cancelBtn = document.getElementById('ticket-menu-cancel-btn');
         var divider = menu.querySelector('.entity-menu-divider');
 
-        var canEdit = !!currentUserId;
+        // Editing pulls its department/category/priority dropdown options by
+        // cloning #ct-* from the create-ticket form, which only exists on the
+        // Tickets page — so the edit action is unavailable wherever this modal
+        // is embedded without that form (e.g. the incident detail page).
+        var canEdit = !!currentUserId && !!document.querySelector('#ct-assignee option');
         var canCancel = ticket.status === 'OPEN';
 
         editBtn.hidden = !canEdit;
@@ -303,9 +307,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (ticket.source === 'INCIDENT') {
             html += fieldBlock('Δημιουργός', escapeHtml(ticket.creatorUsername || 'διαγραμμένο χρήστη'));
 
-            var incidentLabel = ticket.incidentSubject || ('Συμβάν #' + ticket.incidentReportId);
-            var incidentValue = ticket.incidentReportId
-                ? '<a href="/incidents/' + ticket.incidentReportId + '">' + escapeHtml(incidentLabel) + '</a>'
+            var incidentLabel = ticket.incidentSubject || ('Συμβάν #' + ticket.incidentId);
+            var incidentValue = ticket.incidentId
+                ? '<a href="/incidents/' + ticket.incidentId + '">' + escapeHtml(incidentLabel) + '</a>'
                 : '—';
             html += fieldBlock('Σχετικό Συμβάν', incidentValue);
         } else if (ticket.source === 'CALLBACK') {
@@ -346,15 +350,20 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function assigneeFieldHtml(ticket) {
+        // Same #ct-assignee dependency as the edit-info form (see wireHeaderMenu) —
+        // the reassign dropdown clones its options from there, so the action only
+        // makes sense wherever that source select actually exists.
+        var canReassign = ticket.status === 'OPEN' && !!document.querySelector('#ct-assignee option');
+
         var assigneeValue = '<div class="assignee-view" id="assignee-view">';
         assigneeValue += '<span id="td-assignee">' + escapeHtml(ticket.assignedUsername || 'Χωρίς ανάθεση') + '</span>';
-        if (ticket.status === 'OPEN') {
+        if (canReassign) {
             assigneeValue += '<button type="button" class="btn btn-sm" id="td-reassign-toggle">Ανάθεση σε</button>';
         }
         assigneeValue += '</div>';
         var html = fieldBlock('Ανατέθηκε σε', assigneeValue);
 
-        if (ticket.status === 'OPEN') {
+        if (canReassign) {
             var csrfInputForReassign = document.querySelector('#create-ticket-modal input[name="_csrf"]');
             var reassignCsrfToken = csrfInputForReassign ? csrfInputForReassign.value : '';
             html += '<form id="td-reassign-form" class="assignee-edit" method="post" action="/tickets/' + ticket.id + '/reassign" style="display:none;">';
@@ -654,7 +663,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 return response.json();
             }).then(function () {
-                window.location.href = '/tickets';
+                window.location.reload();
             }).catch(function (err) {
                 submitBtn.disabled = false;
                 window.showError('Αποτυχία επίλυσης ticket: ' + err.message);
@@ -886,7 +895,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function historyItemHtml(h) {
         var performer = escapeHtml(h.performedByUsername || 'Διαγραμμένος χρήστης');
-        var assignee = escapeHtml(h.assignedToUsername || 'διαγραμμένο χρήστη');
         var text;
 
         switch (h.action) {
@@ -894,10 +902,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 text = 'Δημιουργήθηκε από ' + performer;
                 break;
             case 'ASSIGNED':
-                text = performer + ' ανέθεσε το ticket σε ' + assignee + '.';
-                break;
             case 'REASSIGNED':
-                text = performer + ' επανέθεσε το ticket σε ' + assignee + '.';
+                // description is the full pre-composed sentence (performer +
+                // verb + assignee, plus an optional reason) — no separate
+                // assignedTo field exists anymore.
+                text = escapeHtml(h.description || (performer + ' ενημέρωσε την ανάθεση.'));
                 break;
             case 'RESOLVED':
                 text = performer + ' επέλυσε το ticket.';
@@ -935,7 +944,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var itemHtml = '<div class="timeline-item">';
         itemHtml += '<div class="timeline-icon ' + iconInfo.cls + '">' + iconInfo.icon + '</div>';
         itemHtml += '<p class="timeline-text">' + text + '</p>';
-        if (h.description) {
+        if (h.description && h.action !== 'ASSIGNED' && h.action !== 'REASSIGNED') {
             itemHtml += h.action === 'INFO_CHANGED'
                 ? infoChangeLinesHtml(h.description)
                 : '<p class="timeline-quote">' + escapeHtml(h.description) + '</p>';

@@ -411,6 +411,25 @@ a:focus-visible {
     min-width: 400px;
 }
 
+/* Search-bar-driven filter rows (tickets, incidents): search + selects grow to
+   fill the row so its right edge lines up with the table below (same .page
+   container, both 100% width) — scoped via this modifier class so other
+   .filters forms (create forms, etc.) keep their natural sizing. */
+.filters-fill-row .filters-search-full {
+    flex: 2 1 auto;
+    max-width: none;
+    min-width: 200px;
+}
+
+.filters-fill-row select {
+    flex: 1 1 auto;
+    min-width: 140px;
+}
+
+.filters-fill-row .btn {
+    flex: 0 0 auto;
+}
+
 .cleanup-panel {
     margin-top: 28px;
     padding-top: 20px;
@@ -435,12 +454,21 @@ a:focus-visible {
 /* Table */
 .ticket-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     overflow: hidden;
     box-shadow: var(--shadow);
+}
+
+.col-ticket-id {
+    width: 70px;
+}
+
+.col-ticket-summary {
+    width: 200px;
 }
 
 .ticket-table th {
@@ -479,7 +507,6 @@ a:focus-visible {
 }
 
 .ticket-desc {
-    max-width: 360px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -819,6 +846,8 @@ dialog.modal-dialog::backdrop {
    from the history tab so the two aren't confused for each other. */
 .timeline-item.timeline-item-plain {
     padding-left: 0;
+    padding-bottom: 0;
+    margin-bottom: 22px;
 }
 
 .timeline-item.timeline-item-plain::before {

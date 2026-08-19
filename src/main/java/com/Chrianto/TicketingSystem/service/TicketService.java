@@ -259,7 +259,6 @@ public class TicketService {
         Ticket ticket = comment.getTicket();
         String commentText = comment.getText();
 
-        ticketHistoryService.unlinkComment(commentId);
         commentRepository.delete(comment);
 
         ticketHistoryService.logHistory(ticket, currentUser, TicketAction.COMMENT_REMOVED, null, null,
@@ -293,6 +292,8 @@ public class TicketService {
         ticket = ticketRepository.save(ticket);
 
         ticketHistoryService.logHistory(ticket, performedBy, TicketAction.RESOLVED, null, null, null);
+        logIncidentCrossPost(ticket, performedBy, IncidentAction.TICKET_RESOLVED,
+                performedBy.getUsername() + " επέλυσε το ticket #" + ticket.getId() + " («" + ticket.getSummary() + "»).");
 
         return toResponse(ticket);
     }
@@ -315,6 +316,8 @@ public class TicketService {
 
         ticketHistoryService.logHistory(ticket, performedBy, TicketAction.CANCELLED, null, null,
                 truncateForHistory(req.getCommentText().trim(), HISTORY_REASON_MAX_LENGTH));
+        logIncidentCrossPost(ticket, performedBy, IncidentAction.TICKET_CANCELLED,
+                performedBy.getUsername() + " ακύρωσε το ticket #" + ticket.getId() + " («" + ticket.getSummary() + "»).");
 
         return toResponse(ticket);
     }
@@ -360,6 +363,8 @@ public class TicketService {
         ticket = ticketRepository.save(ticket);
 
         ticketHistoryService.logHistory(ticket, performedBy, TicketAction.REASSIGNED, assignTo, null, reason);
+        logIncidentCrossPost(ticket, performedBy, IncidentAction.TICKET_ASSIGNED,
+                performedBy.getUsername() + " ανέθεσε το ticket #" + ticket.getId() + " («" + ticket.getSummary() + "») σε " + assignTo.getUsername() + ".");
 
         if (!assignTo.getId().equals(performedBy.getId())) {
             notificationService.notifyTicketAssigned(assignTo.getId());
@@ -384,10 +389,19 @@ public class TicketService {
 
         ticketHistoryService.logHistory(ticket, performedBy, TicketAction.REOPENED, null, null,
                 truncateForHistory(req.getCommentText().trim(), HISTORY_REASON_MAX_LENGTH));
+        logIncidentCrossPost(ticket, performedBy, IncidentAction.TICKET_REOPENED,
+                performedBy.getUsername() + " επανάνοιξε το ticket #" + ticket.getId() + " («" + ticket.getSummary() + "»).");
 
         return toResponse(ticket);
     }
 
+    // Cross-posts a ticket-lifecycle event onto its parent incident's timeline,
+    // for tickets that were spawned from one (source == INCIDENT).
+    private void logIncidentCrossPost(Ticket ticket, User performedBy, IncidentAction action, String description) {
+        if (ticket.getSource() == TicketSource.INCIDENT && ticket.getIncident() != null) {
+            ticketHistoryService.logIncidentHistory(ticket.getIncident(), performedBy, action, null, description);
+        }
+    }
 
 
 
@@ -430,7 +444,7 @@ public class TicketService {
         return CommentResponse.builder()
                 .id(c.getId())
                 .ticketId(c.getTicket() != null ? c.getTicket().getId() : null)
-                .incidentReportId(c.getIncidentReport() != null ? c.getIncidentReport().getId() : null)
+                .incidentId(c.getIncident() != null ? c.getIncident().getId() : null)
                 .authorId(c.getUser() != null ? c.getUser().getId() : null)
                 .authorUsername(c.getUser() != null ? c.getUser().getUsername() : null)
                 .text(c.getText())
@@ -486,8 +500,8 @@ public class TicketService {
                 .description(t.getDescription())
                 .resolution(t.getResolution())
                 .source(t.getSource())
-                .incidentReportId(t.getIncidentReport() != null ? t.getIncidentReport().getId() : null)
-                .incidentSubject(t.getIncidentReport() != null ? t.getIncidentReport().getSubject() : null)
+                .incidentId(t.getIncident() != null ? t.getIncident().getId() : null)
+                .incidentSubject(t.getIncident() != null ? t.getIncident().getSubject() : null)
                 .createdAt(t.getCreatedAt())
                 .updatedAt(t.getUpdatedAt())
                 .build();

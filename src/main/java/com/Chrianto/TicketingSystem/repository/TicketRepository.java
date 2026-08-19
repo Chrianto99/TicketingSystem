@@ -16,7 +16,7 @@ import java.util.List;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
-    List<Ticket> findByIncidentReportIdOrderByCreatedAtDesc(Long incidentReportId);
+    List<Ticket> findByIncidentIdOrderByCreatedAtDesc(Long incidentId);
 
     // Statistics: tickets created per day/month, from a given point forward.
     // Native + date_trunc since this is Postgres-only already (see the Flyway

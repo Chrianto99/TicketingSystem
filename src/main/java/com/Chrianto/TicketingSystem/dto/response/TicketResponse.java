@@ -29,7 +29,7 @@ public class TicketResponse {
     private String description;
     private String resolution;
     private TicketSource source;
-    private Long incidentReportId;
+    private Long incidentId;
     private String incidentSubject;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

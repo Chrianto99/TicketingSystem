@@ -29,6 +29,7 @@
     <a th:href="@{/departments}" class="page-tab" th:classappend="${active == 'departments'} ? ' active'">Τμήματα</a>
     <a th:href="@{/categories}" class="page-tab" th:classappend="${active == 'categories'} ? ' active'">Κατηγορίες Βλάβης</a>
     <a th:href="@{/users}" class="page-tab" th:classappend="${active == 'users'} ? ' active'">Χρήστες</a>
+    <a th:href="@{/attachments/cleanup}" class="page-tab" sec:authorize="hasRole('ADMIN')" th:classappend="${active == 'attachments'} ? ' active'">Συνημμένα</a>
 </div>
 
 <div th:fragment="modals">

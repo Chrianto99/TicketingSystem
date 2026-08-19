@@ -14,15 +14,14 @@
 <main class="page">
     <div class="page-header">
         <h1>Συμβάντα</h1>
+        <button type="button" class="btn btn-primary" id="incident-create-toggle">+ Νέο Συμβάν</button>
     </div>
-
-    <button type="button" class="btn btn-primary" id="incident-create-toggle" style="margin-bottom:20px;">Νέα Αναφορά Συμβάντος</button>
 
     <div class="chart-card" id="incident-create-card" hidden="hidden">
         <div class="chart-card-header">
             <h3>Νέα Αναφορά Συμβάντος</h3>
         </div>
-        <form th:object="${incidentReportCreateRequest}" method="post" th:action="@{/incidents}" class="ticket-form">
+        <form th:object="${incidentCreateRequest}" method="post" th:action="@{/incidents}" class="ticket-form">
             <div class="form-group">
                 <label for="ic-subject">Θέμα (προαιρετικό)</label>
                 <input type="text" id="ic-subject" th:field="*{subject}">
@@ -42,16 +41,26 @@
             </div>
             <div class="form-actions" style="justify-content:flex-end;">
                 <button type="button" id="incident-create-cancel" class="btn">Ακύρωση</button>
-                <button type="submit" class="btn btn-primary">Δημιουργία</button>
+                <button type="submit" class="btn btn-primary">Υποβολή</button>
             </div>
         </form>
     </div>
 
-    <div class="filters">
-        <a th:href="@{/incidents}" class="btn" th:classappend="${statusFilter == null} ? ' btn-primary'">Όλα</a>
-        <a th:each="s : ${statuses}" th:href="@{/incidents(status=${s})}" class="btn"
-           th:classappend="${statusFilter == s} ? ' btn-primary'" th:text="${s.displayName}"></a>
-    </div>
+    <form class="filters filters-fill-row" method="get" th:action="@{/incidents}">
+        <input type="search" name="query" class="filters-search-full"
+               placeholder="Αναζήτηση με βάση θέμα..." th:value="${query}" autocomplete="off">
+
+        <select name="status" onchange="this.form.submit()">
+            <option value="">Όλες οι καταστάσεις</option>
+            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.displayName}" th:selected="${s == statusFilter}"></option>
+        </select>
+        <select name="priority" onchange="this.form.submit()">
+            <option value="">Όλες οι προτεραιότητες</option>
+            <option th:each="p : ${priorities}" th:value="${p}" th:text="${p.displayName}" th:selected="${p == priorityFilter}"></option>
+        </select>
+        <a th:if="${statusFilter != null or priorityFilter != null or not #strings.isEmpty(query)}"
+           th:href="@{/incidents}" class="btn">Καθαρισμός φίλτρων</a>
+    </form>
 
     <table class="entity-table">
         <thead>
@@ -85,7 +94,7 @@
 
     <div class="pagination" th:if="${totalPages > 1}">
         <a th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
-           th:href="@{/incidents(page=${i}, size=${pageSize}, status=${statusFilter})}"
+           th:href="@{/incidents(page=${i}, size=${pageSize}, status=${statusFilter}, priority=${priorityFilter}, query=${query})}"
            th:text="${i + 1}"
            th:classappend="${i == currentPage} ? ' active'"
            class="page-link"></a>

@@ -14,7 +14,7 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
 
     List<Attachment> findByTicketId(Long ticketId);
 
-    List<Attachment> findByIncidentReportId(Long incidentReportId);
+    List<Attachment> findByIncidentId(Long incidentId);
 
     @Modifying
     @Query("UPDATE Attachment a SET a.uploadedBy = null WHERE a.uploadedBy.id = :userId")

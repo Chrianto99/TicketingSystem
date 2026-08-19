@@ -14,7 +14,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     List<Comment> findByTicketIdOrderByTimestampDescIdDesc(Long ticketId);
 
     // Oldest first — the incident detail page reads like a chat log, newest at the bottom.
-    List<Comment> findByIncidentReportIdOrderByTimestampAscIdAsc(Long incidentReportId);
+    List<Comment> findByIncidentIdOrderByTimestampAscIdAsc(Long incidentId);
 
     void deleteByTicketId(Long ticketId);
 

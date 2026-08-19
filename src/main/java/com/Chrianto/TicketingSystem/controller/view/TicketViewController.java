@@ -17,6 +17,7 @@ import com.Chrianto.TicketingSystem.service.DepartmentService;
 import com.Chrianto.TicketingSystem.service.NotificationService;
 import com.Chrianto.TicketingSystem.service.TicketService;
 import com.Chrianto.TicketingSystem.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.propertyeditors.StringTrimmerEditor;
@@ -154,13 +155,14 @@ public class TicketViewController {
                                 @Valid @ModelAttribute("commentRequest") TicketChangeStatusRequest req,
                                 BindingResult bindingResult,
                                 @AuthenticationPrincipal User currentUser,
-                                RedirectAttributes redirectAttributes) {
+                                RedirectAttributes redirectAttributes,
+                                HttpServletRequest request) {
         if (bindingResult.hasErrors()) {
             flashValidationErrors(bindingResult, redirectAttributes);
-            return "redirect:/tickets?openTicket=" + ticketId;
+            return "redirect:" + withOpenTicket(refererOrFallback(request), ticketId);
         }
         ticketService.cancelTicket(ticketId, req, currentUser);
-        return "redirect:/tickets";
+        return "redirect:" + refererOrFallback(request);
     }
 
     @PostMapping("/{ticketId}/reopen")
@@ -168,13 +170,27 @@ public class TicketViewController {
                                 @Valid @ModelAttribute("commentRequest") TicketChangeStatusRequest req,
                                 BindingResult bindingResult,
                                 @AuthenticationPrincipal User currentUser,
-                                RedirectAttributes redirectAttributes) {
+                                RedirectAttributes redirectAttributes,
+                                HttpServletRequest request) {
         if (bindingResult.hasErrors()) {
             flashValidationErrors(bindingResult, redirectAttributes);
-            return "redirect:/tickets?openTicket=" + ticketId;
+            return "redirect:" + withOpenTicket(refererOrFallback(request), ticketId);
         }
         ticketService.reopenTicket(ticketId, req, currentUser);
-        return "redirect:/tickets";
+        return "redirect:" + refererOrFallback(request);
+    }
+
+    // The action modal posts here from wherever it was opened (the Tickets page
+    // or an incident's related-tickets tab) — redirect back to that same page
+    // instead of hardcoding /tickets, so the user isn't bounced off the page
+    // they were actually on.
+    private String refererOrFallback(HttpServletRequest request) {
+        String referer = request.getHeader("Referer");
+        return referer != null ? referer : "/tickets";
+    }
+
+    private String withOpenTicket(String url, Long ticketId) {
+        return url + (url.contains("?") ? "&" : "?") + "openTicket=" + ticketId;
     }
 
     @PostMapping("/{ticketId}/comments")

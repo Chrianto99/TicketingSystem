@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <script th:replace="~{fragments/nav :: theme-init}"></script>
+    <title>Συνημμένα</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="icon" type="image/png" th:href="@{/img/favicon.png}">
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+<div th:replace="~{fragments/nav :: modals}"></div>
+
+<input type="hidden" id="csrf-token" th:value="${_csrf.token}">
+
+<main class="page">
+    <div class="page-header">
+        <div th:replace="~{fragments/nav :: admin-tabs('attachments')}"></div>
+    </div>
+
+    <section class="cleanup-panel">
+        <h3>Εκκαθάριση Παλαιών Συνημμένων</h3>
+        <p class="field-label">
+            Διαγράφει μόνιμα τα συνημμένα αρχεία (και το αρχείο στον δίσκο) που είναι παλαιότερα από τον
+            παρακάτω αριθμό ημερών — μόνο από tickets που έχουν <strong>Επιλυθεί</strong> ή <strong>Ακυρωθεί</strong>,
+            ποτέ από ανοιχτά tickets.
+        </p>
+        <div class="filters">
+            <label for="cleanup-days" class="field-label">Παλαιότερα από (ημέρες)</label>
+            <input type="number" id="cleanup-days" min="30" value="180" style="max-width:100px;">
+            <button type="button" class="btn" id="cleanup-preview-btn">Προεπισκόπηση</button>
+            <button type="button" class="btn btn-danger" id="cleanup-run-btn" disabled="disabled">Εκκαθάριση</button>
+        </div>
+        <p id="cleanup-result" class="field-label"></p>
+    </section>
+</main>
+
+<script th:src="@{/js/attachments.js}"></script>
+</body>
+</html>

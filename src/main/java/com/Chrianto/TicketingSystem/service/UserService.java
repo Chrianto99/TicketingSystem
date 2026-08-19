@@ -138,7 +138,6 @@ public class UserService {
         ticketRepository.nullifyAssignedUser(userId);
         ticketRepository.nullifyLastModifiedBy(userId);
         ticketHistoryRepository.nullifyPerformedBy(userId);
-        ticketHistoryRepository.nullifyAssignedTo(userId);
         commentRepository.nullifyAuthor(userId);
         attachmentRepository.nullifyUploadedBy(userId);
 

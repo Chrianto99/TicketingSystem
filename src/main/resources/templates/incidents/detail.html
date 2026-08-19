@@ -7,16 +7,18 @@
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <link rel="icon" type="image/png" th:href="@{/img/favicon.png}">
 </head>
-<body th:attr="data-current-user-id=${#authentication.principal.id}, data-incident-id=${incident.id}">
+<body th:attr="data-current-user-id=${#authentication.principal.id}, data-incident-id=${incident.id}, data-is-admin=${#authorization.expression('hasRole(''ADMIN'')')}">
 <div th:replace="~{fragments/nav :: nav}"></div>
 <div th:replace="~{fragments/nav :: modals}"></div>
 
 <main class="page">
     <div class="page-header">
-        <h1 th:text="${incident.subject} ?: ('Συμβάν #' + ${incident.id})"></h1>
-        <span class="badge entity-status-badge status-active" th:if="${incident.status.name() == 'OPEN'}" th:text="${incident.status.displayName}"></span>
-        <span class="badge entity-status-badge status-inactive" th:unless="${incident.status.name() == 'OPEN'}" th:text="${incident.status.displayName}"></span>
-        <span class="badge" th:if="${incident.priority}" th:classappend="'priority-' + ${incident.priority}" th:text="${incident.priority.displayName}"></span>
+        <div class="modal-title-row">
+            <h1 th:text="${incident.subject} ?: ('Συμβάν #' + ${incident.id})"></h1>
+            <span class="badge entity-status-badge status-active" th:if="${incident.status.name() == 'OPEN'}" th:text="${incident.status.displayName}"></span>
+            <span class="badge entity-status-badge status-inactive" th:unless="${incident.status.name() == 'OPEN'}" th:text="${incident.status.displayName}"></span>
+            <span class="badge" th:if="${incident.priority}" th:classappend="'priority-' + ${incident.priority}" th:text="${incident.priority.displayName}"></span>
+        </div>
     </div>
     <p class="field-label">
         Δημιουργήθηκε από <strong th:text="${incident.creatorUsername} ?: 'διαγραμμένο χρήστη'"></strong>
@@ -29,7 +31,7 @@
             <h3>Πληροφορίες</h3>
             <div class="ticket-action-buttons">
                 <button type="button" id="ir-edit-btn" class="icon-btn" title="Επεξεργασία" aria-label="Επεξεργασία"
-                        th:hidden="${#fields.hasErrors('incidentReportUpdateRequest.*')}">&#9998;</button>
+                        th:hidden="${#fields.hasErrors('incidentUpdateRequest.*')}">&#9998;</button>
                 <form method="post" th:action="@{/incidents/{id}/close(id=${incident.id})}" th:if="${incident.status.name() == 'OPEN'}"
                       data-confirm="Κλείσιμο αυτού του συμβάντος;">
                     <button type="submit" class="btn btn-danger">Κλείσιμο Συμβάντος</button>
@@ -39,7 +41,7 @@
                 </form>
             </div>
         </div>
-        <form id="ir-edit-form" th:object="${incidentReportUpdateRequest}" method="post" th:action="@{/incidents/{id}/edit(id=${incident.id})}" class="ticket-form">
+        <form id="ir-edit-form" th:object="${incidentUpdateRequest}" method="post" th:action="@{/incidents/{id}/edit(id=${incident.id})}" class="ticket-form">
             <div class="form-group">
                 <label for="ir-subject">Θέμα</label>
                 <input type="text" id="ir-subject" th:field="*{subject}" placeholder="Θέμα (προαιρετικό)" th:disabled="${!#fields.hasErrors('*')}">
@@ -82,23 +84,43 @@
     <!-- Comments / Related tickets -->
     <div class="chart-card">
         <div class="modal-tabs" role="tablist">
-            <button type="button" class="modal-tab" th:classappend="${#fields.hasErrors('incidentTicketCreateRequest.*')} ? '' : ' active'" data-tab-target="incident-tab-comments" role="tab" th:attr="aria-selected=${!#fields.hasErrors('incidentTicketCreateRequest.*')}">Σχόλια</button>
+            <button type="button" class="modal-tab" th:classappend="${#fields.hasErrors('incidentTicketCreateRequest.*')} ? '' : ' active'" data-tab-target="incident-tab-comments" role="tab" th:attr="aria-selected=${!#fields.hasErrors('incidentTicketCreateRequest.*')}">Αναφορές</button>
             <button type="button" class="modal-tab" th:classappend="${#fields.hasErrors('incidentTicketCreateRequest.*')} ? ' active'" data-tab-target="incident-tab-tickets" role="tab" th:attr="aria-selected=${#fields.hasErrors('incidentTicketCreateRequest.*')}">Tickets</button>
+            <button type="button" class="modal-tab" data-tab-target="incident-tab-history" role="tab" aria-selected="false">Ιστορικό</button>
         </div>
 
         <div id="incident-tab-comments" class="modal-tab-panel" th:style="${#fields.hasErrors('incidentTicketCreateRequest.*')} ? 'display:none;' : ''">
-            <p class="field-label" style="text-align:center;" th:if="${comments.isEmpty()}">Δεν υπάρχουν σχόλια ακόμα.</p>
+            <p class="field-label" style="text-align:center;" th:if="${comments.isEmpty()}">Δεν υπάρχουν αναφορές ακόμα.</p>
             <div class="timeline" th:unless="${comments.isEmpty()}">
-                <div class="timeline-item timeline-item-plain" th:each="c : ${comments}">
-                    <p class="timeline-text"><strong th:text="${c.authorUsername} ?: 'Διαγραμμένος χρήστης'"></strong> σχολίασε:</p>
-                    <p class="timeline-quote" th:text="'“' + ${c.text} + '”'"></p>
-                    <p class="timeline-time" th:text="${#temporals.format(c.timestamp, 'dd/MM/yyyy HH:mm')}"></p>
+                <div th:each="c : ${comments}">
+                    <div class="timeline-item timeline-item-plain" th:id="'comment-view-' + ${c.id}">
+                        <p class="timeline-text">Ο χρήστης <strong th:text="${c.authorUsername} ?: 'Διαγραμμένος χρήστης'"></strong> ανέφερε:</p>
+                        <p class="timeline-quote" th:text="'“' + ${c.text} + '”'"></p>
+                        <p class="timeline-time" th:text="${#temporals.format(c.timestamp, 'dd/MM/yyyy HH:mm')}"></p>
+                        <div class="ticket-action-buttons" th:if="${c.authorId == #authentication.principal.id}">
+                            <button type="button" class="icon-btn comment-edit-btn" th:attr="data-comment-id=${c.id}" title="Επεξεργασία" aria-label="Επεξεργασία">&#9998;</button>
+                            <form method="post" th:action="@{/incidents/{incidentId}/comments/{commentId}/delete(incidentId=${incident.id},commentId=${c.id})}" data-confirm="Διαγραφή αυτής της αναφοράς;">
+                                <button type="submit" class="icon-btn" title="Διαγραφή" aria-label="Διαγραφή">&#10005;</button>
+                            </form>
+                        </div>
+                    </div>
+                    <form th:id="'comment-edit-form-' + ${c.id}" class="ticket-form comment-edit-form" method="post"
+                          th:action="@{/incidents/{incidentId}/comments/{commentId}/edit(incidentId=${incident.id},commentId=${c.id})}"
+                          th:if="${c.authorId == #authentication.principal.id}" hidden="hidden">
+                        <div class="form-group">
+                            <textarea name="text" th:text="${c.text}" required="required"></textarea>
+                        </div>
+                        <div class="ticket-action-buttons">
+                            <button type="submit" class="btn btn-success">Αποθήκευση</button>
+                            <button type="button" class="btn comment-edit-cancel" th:attr="data-comment-id=${c.id}">Άκυρο</button>
+                        </div>
+                    </form>
                 </div>
             </div>
 
             <form th:object="${incidentCommentCreateRequest}" method="post" th:action="@{/incidents/{id}/comments(id=${incident.id})}" class="ticket-form comment-compose" style="margin-top:20px;">
                 <div class="form-group">
-                    <textarea th:field="*{commentText}" placeholder="Γράψτε ένα σχόλιο…" required="required"></textarea>
+                    <textarea th:field="*{commentText}" placeholder="Γράψτε μια αναφορά…" required="required"></textarea>
                     <span class="field-error" th:if="${#fields.hasErrors('commentText')}" th:errors="*{commentText}"></span>
                 </div>
                 <div class="ticket-action-buttons">
@@ -154,9 +176,84 @@
                 </div>
             </form>
         </div>
+
+        <div id="incident-tab-history" class="modal-tab-panel" style="display:none;">
+            <p class="field-label" style="text-align:center;" th:if="${history.isEmpty()}">Δεν υπάρχει ιστορικό ακόμα.</p>
+            <div class="timeline" th:unless="${history.isEmpty()}">
+                <div class="timeline-item" th:each="h : ${history}">
+                    <div class="timeline-icon" th:classappend="${h.iconCssClass}" th:text="${h.icon}"></div>
+                    <p class="timeline-text" th:text="${h.mainText}"></p>
+                    <p class="timeline-quote" th:if="${h.quote}" th:text="${h.quote}"></p>
+                    <p class="timeline-time" th:text="${#temporals.format(h.timestamp, 'dd/MM/yyyy HH:mm')}"></p>
+                </div>
+            </div>
+        </div>
     </div>
 </main>
 
+<!-- Ticket detail modal (shared with tickets/list.html's tickets.js) — lets a
+     related ticket open in-place instead of navigating away to /tickets. -->
+<dialog id="ticket-modal" class="modal-dialog">
+    <div class="modal-header">
+        <div class="modal-header-top">
+            <div class="modal-title-row">
+                <h2 id="modal-title">Ticket</h2>
+                <span id="modal-status-badge" class="badge"></span>
+                <span id="modal-priority-badge" class="badge"></span>
+                <span id="modal-source-badge" class="badge"></span>
+            </div>
+            <div class="modal-header-actions">
+                <details class="entity-menu" id="ticket-modal-menu">
+                    <summary title="Επιλογές">&#8942;</summary>
+                    <div class="entity-menu-panel">
+                        <button type="button" class="entity-menu-action" id="ticket-menu-edit-btn">Επεξεργασία</button>
+                        <div class="entity-menu-divider"></div>
+                        <button type="button" class="entity-menu-action entity-menu-action-danger" id="ticket-menu-cancel-btn">Ακύρωση Ticket</button>
+                    </div>
+                </details>
+                <button type="button" class="modal-close" aria-label="Κλείσιμο" onclick="document.getElementById('ticket-modal').close()">&times;</button>
+            </div>
+        </div>
+        <p id="modal-meta" class="modal-meta"></p>
+    </div>
+    <div id="modal-body" class="modal-body ticket-form">
+        <p>Φόρτωση…</p>
+    </div>
+    <div id="modal-footer" class="modal-footer" style="display:none;"></div>
+</dialog>
+
+<dialog id="action-modal" class="modal-dialog modal-dialog-sm">
+    <div class="modal-header">
+        <div class="modal-header-top">
+            <h2 id="action-modal-title">Ενέργεια</h2>
+            <button type="button" class="modal-close" aria-label="Κλείσιμο" id="action-modal-close">&times;</button>
+        </div>
+    </div>
+    <form id="action-modal-form" method="post">
+        <div class="modal-body ticket-form">
+            <input type="hidden" name="_csrf" id="action-modal-csrf">
+            <div class="form-group">
+                <label for="action-modal-comment" id="action-modal-comment-label">Σχόλιο</label>
+                <textarea id="action-modal-comment" name="commentText" required="required"></textarea>
+                <button type="button" class="resolution-suggestion" id="action-modal-suggestion">✓ Επιλύθηκε</button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-icon-only" id="action-modal-cancel" title="Άκυρο" aria-label="Άκυρο">✗</button>
+            <button type="submit" class="btn btn-primary btn-icon-only" id="action-modal-submit" title="Επιβεβαίωση" aria-label="Επιβεβαίωση">✓</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- Not a real create-ticket form here — tickets.js reads its CSRF token from
+     this exact selector for every ticket action (resolve/cancel/reassign/etc.),
+     and treats a missing #ct-assignee as "no create form on this page" to hide
+     the two actions (reassign, edit info) whose dropdowns depend on it. -->
+<div id="create-ticket-modal" hidden>
+    <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+</div>
+
+<script th:src="@{/js/tickets.js}"></script>
 <script th:src="@{/js/incidents.js}"></script>
 </body>
 </html>

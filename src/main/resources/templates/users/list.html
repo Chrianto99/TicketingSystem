@@ -71,22 +71,6 @@
            th:classappend="${i == currentPage} ? ' active'"
            class="page-link"></a>
     </div>
-
-    <section class="cleanup-panel" sec:authorize="hasRole('ADMIN')">
-        <h3>Εκκαθάριση Παλαιών Συνημμένων</h3>
-        <p class="field-label">
-            Διαγράφει μόνιμα τα συνημμένα αρχεία (και το αρχείο στον δίσκο) που είναι παλαιότερα από τον
-            παρακάτω αριθμό ημερών — μόνο από tickets που έχουν <strong>Επιλυθεί</strong> ή <strong>Ακυρωθεί</strong>,
-            ποτέ από ανοιχτά tickets.
-        </p>
-        <div class="filters">
-            <label for="cleanup-days" class="field-label">Παλαιότερα από (ημέρες)</label>
-            <input type="number" id="cleanup-days" min="30" value="180" style="max-width:100px;">
-            <button type="button" class="btn" id="cleanup-preview-btn">Προεπισκόπηση</button>
-            <button type="button" class="btn btn-danger" id="cleanup-run-btn" disabled="disabled">Εκκαθάριση</button>
-        </div>
-        <p id="cleanup-result" class="field-label"></p>
-    </section>
 </main>
 
 <dialog id="user-modal" class="modal-dialog modal-dialog-sm">

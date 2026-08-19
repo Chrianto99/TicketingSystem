@@ -10,9 +10,9 @@ import java.time.LocalDateTime;
 
 
 @Entity
-@Table(name = "IncidentReport")
+@Table(name = "incident")
 @Getter @Setter @NoArgsConstructor
-public class IncidentReport {
+public class Incident {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

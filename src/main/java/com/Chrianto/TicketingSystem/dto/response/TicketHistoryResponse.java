@@ -11,10 +11,6 @@ public class TicketHistoryResponse {
     private TicketAction action;
     private Long performedById;
     private String performedByUsername;
-    private Long assignedToId;
-    private String assignedToUsername;
-    private Long commentId;
-    private String commentText;
     private String description;
     private LocalDateTime timestamp;
 }

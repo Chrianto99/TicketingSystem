@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-// Ticket creation as spawned from an IncidentReport — deliberately a much
+// Ticket creation as spawned from an Incident — deliberately a much
 // smaller field set than TicketCreateRequest (no department/category/priority):
 // creator and timestamps are server-set, the related incident comes from the
 // path, and priority is inherited from that incident rather than resubmitted,

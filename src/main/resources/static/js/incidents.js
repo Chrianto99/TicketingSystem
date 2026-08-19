@@ -1,7 +1,8 @@
 // Incidents list: clicking a row navigates to that incident's own page (no modal,
-// unlike tickets). Incident detail: clicking a related-ticket row opens that
-// ticket's existing modal on the Tickets page via the same ?openTicket= convention
-// tickets.js already reads on load.
+// unlike tickets). Incident detail: clicking a related-ticket row is handled by
+// tickets.js itself (loaded on this page too, before incidents.js) — its own
+// '.ticket-row' click wiring opens the ticket modal in place, so it never
+// navigates away from the incident.
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.ticket-row[data-incident-id]').forEach(function (row) {
         row.addEventListener('click', function () {
@@ -9,11 +10,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    document.querySelectorAll('.ticket-row[data-ticket-id]').forEach(function (row) {
-        row.addEventListener('click', function () {
-            window.location.href = '/tickets?openTicket=' + row.getAttribute('data-ticket-id');
-        });
-    });
+    // tickets.js defines this globally so the "press N" shortcut (wired in
+    // common.js) can open its create-ticket modal from any page — but this page
+    // only carries a CSRF-token stand-in under that id, not a real create form,
+    // so undo the override and let the shortcut fall back to its normal
+    // cross-page navigation instead of popping an empty dialog.
+    window.openCreateTicketModal = null;
 
     // New-incident form starts collapsed behind a button; clicking it swaps the
     // button out for the form, and the form's own "Ακύρωση" button swaps back.
@@ -64,6 +66,36 @@ document.addEventListener('DOMContentLoaded', function () {
             window.location.reload();
         });
     }
+
+    // Report (comment) edit toggle — same disabled-until-edit pattern as the
+    // incident info card, just per-row instead of a single form.
+    document.querySelectorAll('.comment-edit-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var id = btn.getAttribute('data-comment-id');
+            var view = document.getElementById('comment-view-' + id);
+            var form = document.getElementById('comment-edit-form-' + id);
+            if (view && form) {
+                view.hidden = true;
+                form.hidden = false;
+                var textarea = form.querySelector('textarea');
+                if (textarea) {
+                    textarea.focus();
+                }
+            }
+        });
+    });
+
+    document.querySelectorAll('.comment-edit-cancel').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var id = btn.getAttribute('data-comment-id');
+            var view = document.getElementById('comment-view-' + id);
+            var form = document.getElementById('comment-edit-form-' + id);
+            if (view && form) {
+                form.hidden = true;
+                view.hidden = false;
+            }
+        });
+    });
 
     // Comments / Tickets tabs below the info card — same tab pattern as the
     // statistics page and the ticket modal.

@@ -17,8 +17,8 @@ public class Attachment {
     private Ticket ticket;
 
     @ManyToOne
-    @JoinColumn(name = "incident_report_id")
-    private IncidentReport incidentReport; // nullable, new
+    @JoinColumn(name = "incident_id")
+    private Incident incident; // nullable, new
 
     @ManyToOne
     @JoinColumn(name = "uploaded_by_id")
@@ -40,12 +40,12 @@ public class Attachment {
     @PreUpdate
     private void validateParent() {
         boolean hasTicket = ticket != null;
-        boolean hasIncidentReport = incidentReport != null;
+        boolean hasIncident = incident != null;
 
-        if (hasTicket == hasIncidentReport) {
+        if (hasTicket == hasIncident) {
             // both null, or both set — either way, invalid
             throw new IllegalStateException(
-                    "Attachment must belong to exactly one of: Ticket, IncidentReport"
+                    "Attachment must belong to exactly one of: Ticket, Incident"
             );
         }
     }

@@ -17,8 +17,8 @@ public class Comment {
     private Ticket ticket; // nullable now
 
     @ManyToOne
-    @JoinColumn(name = "incident_report_id")
-    private IncidentReport incidentReport; // nullable, new
+    @JoinColumn(name = "incident_id")
+    private Incident incident; // nullable, new
 
     @ManyToOne
     @JoinColumn(name = "author_id")
@@ -33,12 +33,12 @@ public class Comment {
     @PreUpdate
     private void validateParent() {
         boolean hasTicket = ticket != null;
-        boolean hasIncidentReport = incidentReport != null;
+        boolean hasIncident = incident != null;
 
-        if (hasTicket == hasIncidentReport) {
+        if (hasTicket == hasIncident) {
             // both null, or both set — either way, invalid
             throw new IllegalStateException(
-                    "Comment must belong to exactly one of: Ticket, IncidentReport"
+                    "Comment must belong to exactly one of: Ticket, Incident"
             );
         }
     }

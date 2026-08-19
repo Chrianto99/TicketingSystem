@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter @Setter
-public class IncidentReportCreateRequest {
+public class IncidentCreateRequest {
     private String subject;
 
     @NotBlank(message = "Η περιγραφή είναι υποχρεωτική")

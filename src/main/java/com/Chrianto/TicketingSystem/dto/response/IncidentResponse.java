@@ -9,7 +9,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Getter @Setter @Builder
-public class IncidentReportResponse {
+public class IncidentResponse {
     private Long id;
     private Long creatorId;
     private String creatorUsername;
