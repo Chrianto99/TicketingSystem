@@ -18,7 +18,7 @@
 
     <form th:object="${departmentCreateRequest}" method="post" th:action="@{/departments}" class="filters" sec:authorize="hasRole('ADMIN')">
         <input type="text" th:field="*{name}" placeholder="Νέο τμήμα" required="required">
-        <input type="text" th:field="*{code}" placeholder="Κωδικός (προαιρετικό)">
+        <input type="text" th:field="*{location}" placeholder="Τοποθεσία (προαιρετικό)">
         <button type="submit" class="btn btn-primary">+ Προσθήκη Τμήματος</button>
     </form>
 
@@ -30,7 +30,7 @@
         <thead>
         <tr>
             <th>Όνομα</th>
-            <th>Κωδικός</th>
+            <th>Τοποθεσία</th>
 <!--            <th>Κατάσταση</th>-->
             <th></th>
         </tr>
@@ -41,12 +41,12 @@
                 <span class="entity-edit-view" th:text="${department.name}"></span>
                 <form method="post" th:action="@{/departments/{id}/edit(id=${department.id})}" class="entity-inline-edit-form" hidden="hidden">
                     <input type="text" name="name" th:value="${department.name}" required="required" placeholder="Όνομα" aria-label="Όνομα τμήματος">
-                    <input type="text" name="code" th:value="${department.code}" placeholder="Κωδικός" aria-label="Κωδικός τμήματος">
+                    <input type="text" name="location" th:value="${department.location}" placeholder="Τοποθεσία" aria-label="Τοποθεσία τμήματος">
                     <button type="submit" class="btn btn-sm">Αποθήκευση</button>
                     <button type="button" class="btn btn-sm js-edit-cancel">Άκυρο</button>
                 </form>
             </td>
-            <td><span class="entity-code entity-edit-view" th:if="${not #strings.isEmpty(department.code)}" th:text="${department.code}"></span></td>
+            <td><span class="entity-location entity-edit-view" th:if="${not #strings.isEmpty(department.location)}" th:text="${department.location}"></span></td>
 <!--            <td><span class="badge entity-status-badge status-active">Ενεργό</span></td>-->
             <td class="entity-actions-cell">
                 <details class="entity-menu" sec:authorize="hasRole('ADMIN')">
@@ -71,12 +71,12 @@
                 <span class="entity-edit-view" th:text="${department.name}"></span>
                 <form method="post" th:action="@{/departments/{id}/edit(id=${department.id})}" class="entity-inline-edit-form" hidden="hidden">
                     <input type="text" name="name" th:value="${department.name}" required="required" placeholder="Όνομα" aria-label="Όνομα τμήματος">
-                    <input type="text" name="code" th:value="${department.code}" placeholder="Κωδικός" aria-label="Κωδικός τμήματος">
+                    <input type="text" name="location" th:value="${department.location}" placeholder="Τοποθεσία" aria-label="Τοποθεσία τμήματος">
                     <button type="submit" class="btn btn-sm">Αποθήκευση</button>
                     <button type="button" class="btn btn-sm js-edit-cancel">Άκυρο</button>
                 </form>
             </td>
-            <td><span class="entity-code entity-edit-view" th:if="${not #strings.isEmpty(department.code)}" th:text="${department.code}"></span></td>
+            <td><span class="entity-location entity-edit-view" th:if="${not #strings.isEmpty(department.location)}" th:text="${department.location}"></span></td>
             <td><span class="badge entity-status-badge status-inactive">Ανενεργό</span></td>
             <td class="entity-actions-cell">
                 <details class="entity-menu" sec:authorize="hasRole('ADMIN')">

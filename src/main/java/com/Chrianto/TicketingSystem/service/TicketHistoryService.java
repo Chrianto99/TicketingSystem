@@ -82,9 +82,8 @@ public class TicketHistoryService {
                 // nothing extra to attach
             }
             case CANCELLED, REOPENED -> {
-                if (description == null || description.isBlank()) {
-                    throw new IllegalArgumentException(ticketAction + ": απαιτείται λόγος");
-                }
+                // reason is optional — description may be null/blank, in which
+                // case the history entry just shows no quote line
             }
             case COMMENT_ADDED -> {
                 if (comment == null) {
@@ -100,6 +99,16 @@ public class TicketHistoryService {
             }
             case ATTACHMENT_ADDED, ATTACHMENT_REMOVED -> {
                 // description carries the file name
+            }
+            case OFFERED -> {
+                // description is the pre-composed "offered to X, Y, Z" sentence
+                if (description == null || description.isBlank()) {
+                    throw new IllegalArgumentException("OFFERED: απαιτείται περιγραφή");
+                }
+            }
+            case CLAIMED -> {
+                // nothing extra to attach — display text is composed client-side,
+                // same as RESOLVED/CANCELLED
             }
 
             default -> throw new IllegalArgumentException("Μη υποστηριζόμενη ενέργεια ticket: " + ticketAction);
@@ -180,12 +189,14 @@ public class TicketHistoryService {
                 mainText = h.getDescription();
             }
             case CLOSED -> {
-                icon = ICON_CROSS; cssClass = "icon-cancelled";
-                mainText = h.getDescription();
+                icon = ICON_CHECK; cssClass = "icon-resolved";
+                mainText = "Ο χρήστης " + performer + " έκλεισε το συμβάν:";
+                quote = h.getDescription();
             }
             case REOPENED -> {
                 icon = ICON_UNDO; cssClass = "icon-reopened";
-                mainText = h.getDescription();
+                mainText = "Ο χρήστης " + performer + " επανάνοιξε το συμβάν:";
+                quote = h.getDescription();
             }
             case TICKET_ASSIGNED -> {
                 icon = ICON_TICKET; cssClass = "icon-assigned";
@@ -205,12 +216,12 @@ public class TicketHistoryService {
             }
             case COMMENT_REMOVED -> {
                 icon = ICON_CROSS; cssClass = "icon-cancelled";
-                mainText = performer + " διέγραψε μια αναφορά.";
+                mainText = "Ο χρήστης " + performer + " διέγραψε μια αναφορά.";
                 quote = h.getDescription();
             }
             case ATTACHMENT_REMOVED -> {
                 icon = ICON_CROSS; cssClass = "icon-cancelled";
-                mainText = performer + " αφαίρεσε ένα αρχείο:";
+                mainText = "Ο χρήστης " + performer + " αφαίρεσε ένα αρχείο:";
                 quote = h.getDescription();
             }
             case COMMENT_ADDED -> {
@@ -220,7 +231,7 @@ public class TicketHistoryService {
             }
             case ATTACHMENT_ADDED -> {
                 icon = ICON_EDIT; cssClass = "icon-edited";
-                mainText = performer + " επισύναψε ένα αρχείο:";
+                mainText = "Ο χρήστης " + performer + " επισύναψε ένα αρχείο:";
                 quote = h.getDescription();
             }
             case INFO_CHANGED -> {
@@ -229,7 +240,7 @@ public class TicketHistoryService {
             }
             case COMMENT_EDITED -> {
                 icon = ICON_EDIT; cssClass = "icon-edited";
-                mainText = performer + " επεξεργάστηκε μια αναφορά.";
+                mainText = "Ο χρήστης " + performer + " επεξεργάστηκε μια αναφορά.";
                 quote = h.getDescription();
             }
             default -> {

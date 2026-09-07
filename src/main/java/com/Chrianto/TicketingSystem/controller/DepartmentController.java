@@ -43,7 +43,7 @@ public class DepartmentController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DepartmentResponse> updateDepartment(@PathVariable Long departmentId,
                                                                  @Valid @RequestBody DepartmentCreateRequest req) {
-        return ResponseEntity.ok(departmentService.updateDepartment(departmentId, req.getName(), req.getCode()));
+        return ResponseEntity.ok(departmentService.updateDepartment(departmentId, req.getName(), req.getLocation()));
     }
 
     @PatchMapping("/{departmentId}/active")

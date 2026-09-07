@@ -24,7 +24,7 @@ public class DepartmentService {
 
         department.setName(req.getName());
         department.setActive(true);
-        department.setCode(req.getCode());
+        department.setLocation(req.getLocation());
 
         department = departmentRepository.save(department);
 
@@ -32,12 +32,12 @@ public class DepartmentService {
     }
 
     @Transactional
-    public DepartmentResponse updateDepartment(Long departmentId, String name, String code) {
+    public DepartmentResponse updateDepartment(Long departmentId, String name, String location) {
         Department department = departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε τμήμα με id: " + departmentId));
 
         department.setName(name);
-        department.setCode(code);
+        department.setLocation(location);
         department = departmentRepository.save(department);
 
         return toResponse(department);
@@ -77,7 +77,7 @@ public class DepartmentService {
                 .id(d.getId())
                 .name(d.getName())
                 .active(d.isActive())
-                .code(d.getCode())
+                .location(d.getLocation())
                 .build();
     }
 

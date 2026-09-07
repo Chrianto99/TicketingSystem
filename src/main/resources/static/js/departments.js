@@ -1,4 +1,4 @@
-// Client-side search filter for the Departments page — matches on name or code.
+// Client-side search filter for the Departments page — matches on name or location.
 document.addEventListener('DOMContentLoaded', function () {
     var searchInput = document.getElementById('department-search');
     var list = document.getElementById('department-list');
@@ -16,8 +16,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         cards.forEach(function (card) {
             var name = card.querySelector('.entity-name .entity-edit-view');
-            var code = card.querySelector('.entity-code');
-            var text = ((name ? name.textContent : '') + ' ' + (code ? code.textContent : '')).toLowerCase();
+            var location = card.querySelector('.entity-location');
+            var text = ((name ? name.textContent : '') + ' ' + (location ? location.textContent : '')).toLowerCase();
             var matches = !query || text.indexOf(query) !== -1;
             card.hidden = !matches;
             if (matches) {

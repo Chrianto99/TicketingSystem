@@ -7,5 +7,5 @@ public class DepartmentResponse {
     private Long id;
     private String name;
     private boolean active;
-    private String code;
+    private String location;
 }

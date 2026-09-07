@@ -11,7 +11,7 @@ import java.util.List;
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     // Newest first, matching how the comments tab has always displayed them.
-    List<Comment> findByTicketIdOrderByTimestampDescIdDesc(Long ticketId);
+    List<Comment> findByTicketIdOrderByTimestampAscIdAsc(Long ticketId);
 
     // Oldest first — the incident detail page reads like a chat log, newest at the bottom.
     List<Comment> findByIncidentIdOrderByTimestampAscIdAsc(Long incidentId);

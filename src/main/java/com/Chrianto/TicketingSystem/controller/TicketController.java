@@ -4,6 +4,7 @@ import com.Chrianto.TicketingSystem.dto.request.CallbackTicketCreateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketCreateRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketChangeStatusRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketUpdateRequest;
+import com.Chrianto.TicketingSystem.dto.request.TicketOfferRequest;
 import com.Chrianto.TicketingSystem.dto.request.TicketReassignRequest;
 import com.Chrianto.TicketingSystem.dto.response.CommentResponse;
 import com.Chrianto.TicketingSystem.dto.response.TicketHistoryResponse;
@@ -112,6 +113,19 @@ public class TicketController {
                                                          @Valid @RequestBody TicketReassignRequest req,
                                                          @AuthenticationPrincipal User currentUser) {
         return ResponseEntity.ok(ticketService.reassignTicket(ticketId, req, currentUser));
+    }
+
+    @PostMapping("/{ticketId}/offer")
+    public ResponseEntity<TicketResponse> offerTicket(@PathVariable Long ticketId,
+                                                       @Valid @RequestBody TicketOfferRequest req,
+                                                       @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(ticketService.offerTicketToCandidates(ticketId, req.getCandidateUserIds(), currentUser));
+    }
+
+    @PatchMapping("/{ticketId}/claim")
+    public ResponseEntity<TicketResponse> claimTicket(@PathVariable Long ticketId,
+                                                       @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(ticketService.claimTicket(ticketId, currentUser));
     }
 
     @GetMapping("/{ticketId}/history")

@@ -6,6 +6,7 @@ import com.Chrianto.TicketingSystem.entity.enums.TicketStatus;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter @Setter @Builder
 public class TicketResponse {
@@ -14,8 +15,11 @@ public class TicketResponse {
     private String creatorUsername;
     private Long assignedUserId;
     private String assignedUsername;
+    private List<Long> candidateUserIds;
+    private String candidateUsernamesDisplay;
     private Long departmentId;
     private String departmentName;
+    private String departmentLocation;
     private Long categoryId;
     private String category;
     private Long subcategoryId;

@@ -92,6 +92,15 @@ public class UserService {
                 .toList();
     }
 
+    // For assignee dropdowns specifically — a deactivated user shouldn't be
+    // offered as someone to hand a ticket to. Admin-facing lists (the Users
+    // page itself, the REST API) keep using getAllUsers() and still show them.
+    public List<UserResponse> getAllActiveUsers() {
+        return userRepository.findByIsActiveTrueOrderByUsernameAsc().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     public UserResponse getUserById(Long userId){
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + userId));

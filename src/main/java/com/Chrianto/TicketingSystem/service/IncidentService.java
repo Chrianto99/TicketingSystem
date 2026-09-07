@@ -41,6 +41,7 @@ public class IncidentService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final TicketHistoryService ticketHistoryService;
+    private final NotificationService notificationService;
 
     public IncidentResponse createIncident(IncidentCreateRequest req, User creator) {
         Incident incident = new Incident();
@@ -53,7 +54,8 @@ public class IncidentService {
         incident.setUpdatedAt(LocalDateTime.now());
 
         incident = incidentRepository.save(incident);
-        ticketHistoryService.logIncidentHistory(incident, creator, REPORTED, null, "Αναφέρθηκε από " + creator.getUsername());
+        ticketHistoryService.logIncidentHistory(incident, creator, REPORTED, null,
+                "Ο χρήστης " + creator.getUsername() + " ανέφερε το συμβάν.");
         return toResponse(incident);
     }
 
@@ -82,11 +84,18 @@ public class IncidentService {
 
         incident = incidentRepository.save(incident);
         ticketHistoryService.logIncidentHistory(incident, performedBy, INFO_CHANGED, null,
-                performedBy.getUsername() + " επεξεργάστηκε τις πληροφορίες του συμβάντος.");
+                "Ο χρήστης " + performedBy.getUsername() + " επεξεργάστηκε τις πληροφορίες του συμβάντος.");
         return toResponse(incident);
     }
 
-    public IncidentResponse closeIncident(Long incidentId, User performedBy) {
+    // Closing/reopening now happens through a report rather than a bare status
+    // flip: the report's text becomes both the Comment shown in the Αναφορές
+    // thread and the quote on this event's History entry. An incident can
+    // cycle open/closed many times, so every cycle's explanation stays visible
+    // in the thread in order — unlike a single "resolution" column, which only
+    // ever held the latest one.
+    @Transactional
+    public IncidentResponse closeIncident(Long incidentId, IncidentCommentCreateRequest req, User performedBy) {
         Incident incident = incidentRepository.findById(incidentId)
                 .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε αναφορά συμβάντος με id: " + incidentId));
 
@@ -94,15 +103,17 @@ public class IncidentService {
             throw new IllegalStateException("Η αναφορά συμβάντος είναι ήδη " + incident.getStatus().getDisplayName());
         }
 
+        postComment(incident, performedBy, req.getCommentText());
+
         incident.setStatus(IncidentStatus.CLOSED);
         incident.setUpdatedAt(LocalDateTime.now());
         incident = incidentRepository.save(incident);
-        ticketHistoryService.logIncidentHistory(incident, performedBy, CLOSED, null,
-                performedBy.getUsername() + " έκλεισε το συμβάν.");
+        ticketHistoryService.logIncidentHistory(incident, performedBy, CLOSED, null, req.getCommentText());
         return toResponse(incident);
     }
 
-    public IncidentResponse reopenIncident(Long incidentId, User performedBy) {
+    @Transactional
+    public IncidentResponse reopenIncident(Long incidentId, IncidentCommentCreateRequest req, User performedBy) {
         Incident incident = incidentRepository.findById(incidentId)
                 .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε αναφορά συμβάντος με id: " + incidentId));
 
@@ -110,12 +121,22 @@ public class IncidentService {
             throw new IllegalStateException("Η αναφορά συμβάντος είναι ήδη " + incident.getStatus().getDisplayName());
         }
 
+        postComment(incident, performedBy, req.getCommentText());
+
         incident.setStatus(IncidentStatus.OPEN);
         incident.setUpdatedAt(LocalDateTime.now());
         incident = incidentRepository.save(incident);
-        ticketHistoryService.logIncidentHistory(incident, performedBy, REOPENED, null,
-                performedBy.getUsername() + " επανάνοιξε το συμβάν.");
+        ticketHistoryService.logIncidentHistory(incident, performedBy, REOPENED, null, req.getCommentText());
         return toResponse(incident);
+    }
+
+    private void postComment(Incident incident, User author, String text) {
+        Comment comment = new Comment();
+        comment.setIncident(incident);
+        comment.setUser(author);
+        comment.setText(text);
+        comment.setTimestamp(LocalDateTime.now());
+        commentRepository.save(comment);
     }
 
     public CommentResponse addComment(Long incidentId, IncidentCommentCreateRequest req, User author) {
@@ -127,8 +148,8 @@ public class IncidentService {
         comment.setUser(author);
         comment.setText(req.getCommentText());
         comment.setTimestamp(LocalDateTime.now());
-
         comment = commentRepository.save(comment);
+
         ticketHistoryService.logIncidentHistory(incident, author, COMMENT_ADDED, comment, null);
         return toCommentResponse(comment);
     }
@@ -196,14 +217,28 @@ public class IncidentService {
         Incident incident = incidentRepository.findById(incidentId)
                 .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε αναφορά συμβάντος με id: " + incidentId));
 
-        User assignee = userRepository.findById(req.getAssignedUserId())
-                .orElseThrow(() -> new EntityNotFoundException("Δεν βρέθηκε χρήστης με id: " + req.getAssignedUserId()));
+        if (req.getCandidateUserIds() == null || req.getCandidateUserIds().isEmpty()) {
+            throw new IllegalArgumentException("Απαιτείται τουλάχιστον ένας υποψήφιος χρήστης");
+        }
+        List<User> candidates = userRepository.findAllById(req.getCandidateUserIds());
+        if (candidates.size() != new java.util.HashSet<>(req.getCandidateUserIds()).size()) {
+            throw new EntityNotFoundException("Ένας ή περισσότεροι υποψήφιοι χρήστες δεν βρέθηκαν");
+        }
+        if (candidates.stream().anyMatch(u -> !u.isActive())) {
+            throw new IllegalArgumentException("Δεν μπορείτε να προσφέρετε το ticket σε απενεργοποιημένο χρήστη");
+        }
+        // Offering it to no one but yourself is just claiming it.
+        boolean selfClaim = candidates.size() == 1 && candidates.get(0).getId().equals(creator.getId());
 
         Ticket ticket = new Ticket();
         ticket.setIncident(incident);
         ticket.setCreator(creator);
         ticket.setPriority(incident.getPriority());
-        ticket.setAssignedUser(assignee);
+        if (selfClaim) {
+            ticket.setAssignedUser(creator);
+        } else {
+            ticket.getCandidates().addAll(candidates);
+        }
         ticket.setSummary(req.getTitle());
         ticket.setDescription(req.getDescription());
         ticket.setStatus(TicketStatus.OPEN);
@@ -214,14 +249,30 @@ public class IncidentService {
         ticket = ticketRepository.save(ticket);
 
         ticketHistoryService.logHistory(ticket, creator, TicketAction.CREATED, null, null, null);
-        ticketHistoryService.logHistory(ticket, creator, TicketAction.ASSIGNED, assignee, null, null);
 
-        // Creation + initial assignment happen in the same step for an
+        if (selfClaim) {
+            ticketHistoryService.logHistory(ticket, creator, TicketAction.CLAIMED, null, null, null);
+            ticketHistoryService.logIncidentHistory(incident, creator, TICKET_ASSIGNED, null,
+                    "Ο χρήστης " + creator.getUsername() + " ανέλαβε το ticket #" + ticket.getId() + " («" + ticket.getSummary() + "»).");
+            return toTicketResponse(ticket);
+        }
+
+        String names = candidates.stream().map(User::getUsername).collect(java.util.stream.Collectors.joining(", "));
+        String sentence = "Ο χρήστης " + creator.getUsername() + " πρόσφερε το ticket σε: " + names + ".";
+        ticketHistoryService.logHistory(ticket, creator, TicketAction.OFFERED, null, null, sentence);
+
+        // Creation + initial offer happen in the same step for an
         // incident-derived ticket, so they collapse into one TICKET_ASSIGNED
         // entry on the parent incident's timeline rather than a separate
         // "created" entry.
         ticketHistoryService.logIncidentHistory(incident, creator, TICKET_ASSIGNED, null,
-                creator.getUsername() + " ανέθεσε το ticket #" + ticket.getId() + " («" + ticket.getSummary() + "») σε " + assignee.getUsername() + ".");
+                "Ο χρήστης " + creator.getUsername() + " πρόσφερε το ticket #" + ticket.getId() + " («" + ticket.getSummary() + "») σε: " + names + ".");
+
+        for (User candidate : candidates) {
+            if (!candidate.getId().equals(creator.getId())) {
+                notificationService.notifyTicketAssigned(candidate.getId());
+            }
+        }
 
         return toTicketResponse(ticket);
     }

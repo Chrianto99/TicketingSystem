@@ -53,6 +53,54 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
                          @Param("query") String query,
                          Pageable pageable);
 
+    // "My Tickets" scope: tickets assigned to me OR offered to me as a candidate.
+    // Kept separate from search() above rather than folding a MEMBER OF/candidate
+    // clause into it — search() backs the REST API's assignedToUserId filter too,
+    // and widening its meaning there would silently change what that endpoint returns.
+    @Query("SELECT t FROM Ticket t " +
+           "LEFT JOIN t.assignedUser au " +
+           "LEFT JOIN t.candidates cand " +
+           "LEFT JOIN t.department d " +
+           "LEFT JOIN t.category c " +
+           "LEFT JOIN t.subcategory sc " +
+           "WHERE (:status IS NULL OR t.status = :status) " +
+           "AND (:priority IS NULL OR t.priority = :priority) " +
+           "AND (t.assignedUser.id = :userId OR cand.id = :userId) " +
+           "AND (:source IS NULL OR t.source = :source) " +
+           "AND (:query IS NULL " +
+           "OR LOWER(t.summary) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
+           "OR LOWER(au.username) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
+           "OR LOWER(d.name) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
+           "OR LOWER(c.name) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
+           "OR LOWER(sc.name) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')))")
+    Page<Ticket> searchAssignedOrCandidate(@Param("status") TicketStatus status,
+                                            @Param("priority") TicketPriority priority,
+                                            @Param("userId") Long userId,
+                                            @Param("source") TicketSource source,
+                                            @Param("query") String query,
+                                            Pageable pageable);
+
+    // Atomic claim: succeeds (returns 1) only if the ticket is still unassigned
+    // AND the claimant was actually offered it — both checked in the same
+    // statement so two concurrent claims can't both win. Native SQL rather than
+    // JPQL because JPQL's UPDATE can't target an association column via a
+    // subquery EXISTS against a join-table-only relationship this cheaply.
+    // clearAutomatically/flushAutomatically matter here (unlike the nullify*
+    // methods below, which are never followed by a re-read of the same row in
+    // the same transaction): claimTicket() re-fetches the ticket right after
+    // these two run, and open-in-view keeps the persistence context alive for
+    // the whole request, so a stale cached entity/collection is a real risk.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "UPDATE ticket SET assigned_user_id = :userId " +
+            "WHERE id = :ticketId AND assigned_user_id IS NULL " +
+            "AND EXISTS (SELECT 1 FROM ticket_candidate WHERE ticket_id = :ticketId AND user_id = :userId)",
+            nativeQuery = true)
+    int claimIfCandidate(@Param("ticketId") Long ticketId, @Param("userId") Long userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "DELETE FROM ticket_candidate WHERE ticket_id = :ticketId", nativeQuery = true)
+    void clearCandidates(@Param("ticketId") Long ticketId);
+
     @Modifying
     @Query("UPDATE Ticket t SET t.creator = null WHERE t.creator.id = :userId")
     void nullifyCreator(@Param("userId") Long userId);

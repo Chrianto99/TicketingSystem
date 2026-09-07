@@ -14,8 +14,8 @@
 <main class="page">
     <div class="page-header">
         <div class="page-tabs">
-            <a th:href="@{/tickets(scope='assigned')}" th:classappend="${scope == 'assigned'} ? ' active'" class="page-tab">Τα Tickets μου<span id="my-tickets-dot" class="notif-dot" th:classappend="${hasUnseenAssignedTickets} ? ' visible'"></span></a>
             <a th:href="@{/tickets(scope='all')}" th:classappend="${scope != 'assigned'} ? ' active'" class="page-tab">Όλα τα Tickets</a>
+            <a th:href="@{/tickets(scope='assigned')}" th:classappend="${scope == 'assigned'} ? ' active'" class="page-tab">Τα Tickets μου<span id="my-tickets-dot" class="notif-dot" th:classappend="${hasUnseenAssignedTickets} ? ' visible'"></span></a>
         </div>
         <button type="button" class="btn btn-primary" onclick="openCreateTicketModal()">+ Νέο Ticket</button>
     </div>
@@ -46,8 +46,8 @@
     <table class="ticket-table">
         <thead>
         <tr>
-            <th class="col-ticket-id">ID</th>
-            <th class="col-ticket-summary">Περίληψη</th>
+            <th>ID</th>
+            <th>Περίληψη</th>
             <th>Κατάσταση</th>
             <th>Προτεραιότητα</th>
             <th>Προέλευση</th>
@@ -57,18 +57,29 @@
         </tr>
         </thead>
         <tbody>
-        <tr th:each="ticket : ${ticketPage.content}" class="ticket-row" th:attr="data-ticket-id=${ticket.id}">
-            <td class="ticket-id" th:text="'#' + ${ticket.id}"></td>
-            <td class="ticket-desc" th:text="${ticket.summary}"></td>
-            <td><span class="badge" th:classappend="'status-' + ${ticket.status}" th:text="${ticket.status.displayName}"></span></td>
+        <tr th:each="ticket : ${ticketPage.content}" class="ticket-row"
+            th:classappend="${ticket.assignedUsername == null and ticket.candidateUsernamesDisplay != null} ? ' ticket-row-offered'"
+            th:attr="data-ticket-id=${ticket.id}">
+            <td class="ticket-id"><div class="td-clip" th:text="'#' + ${ticket.id}"></div></td>
+            <td class="ticket-desc"><div class="td-clip" th:text="${ticket.summary}"></div></td>
+            <td><div class="td-clip"><span class="badge" th:classappend="'status-' + ${ticket.status}" th:text="${ticket.status.displayName}"></span></div></td>
             <td>
-                <span class="badge" th:if="${ticket.priority}" th:classappend="'priority-' + ${ticket.priority}" th:text="${ticket.priority.displayName}"></span>
-                <span th:unless="${ticket.priority}">—</span>
+                <div class="td-clip">
+                    <span class="badge" th:if="${ticket.priority}" th:classappend="'priority-' + ${ticket.priority}" th:text="${ticket.priority.displayName}"></span>
+                    <span th:unless="${ticket.priority}">—</span>
+                </div>
             </td>
-            <td><span class="badge" th:classappend="'source-' + ${ticket.source}" th:text="${ticket.source.displayName}"></span></td>
-            <td th:text="${ticket.departmentName} ?: '—'"></td>
-            <td th:text="${ticket.assignedUsername} ?: 'Χωρίς ανάθεση'"></td>
-            <td th:text="${#temporals.format(ticket.createdAt, 'dd MMM yyyy, HH:mm')}"></td>
+            <td><div class="td-clip"><span class="badge" th:classappend="'source-' + ${ticket.source}" th:text="${ticket.source.displayName}"></span></div></td>
+            <td><div class="td-clip" th:text="${ticket.departmentName} ?: '—'"></div></td>
+            <td>
+                <div class="td-clip">
+                    <span th:if="${ticket.assignedUsername}" th:text="${ticket.assignedUsername}"></span>
+                    <span th:if="${ticket.assignedUsername == null and ticket.candidateUsernamesDisplay != null}"
+                          th:text="'Προσφέρθηκε σε: ' + ${ticket.candidateUsernamesDisplay}"></span>
+                    <span th:if="${ticket.assignedUsername == null and ticket.candidateUsernamesDisplay == null}">Χωρίς ανάθεση</span>
+                </div>
+            </td>
+            <td><div class="td-clip" th:text="${#temporals.format(ticket.createdAt, 'dd MMM yyyy, HH:mm')}"></div></td>
         </tr>
         <tr th:if="${ticketPage.content.isEmpty()}">
             <td colspan="8" class="empty-state">Δεν βρέθηκαν tickets.</td>
@@ -126,8 +137,7 @@
             <input type="hidden" name="_csrf" id="action-modal-csrf">
             <div class="form-group">
                 <label for="action-modal-comment" id="action-modal-comment-label">Σχόλιο</label>
-                <textarea id="action-modal-comment" name="commentText" required="required"></textarea>
-                <button type="button" class="resolution-suggestion" id="action-modal-suggestion">✓ Επιλύθηκε</button>
+                <textarea id="action-modal-comment" name="commentText"></textarea>
             </div>
         </div>
         <div class="modal-footer">
@@ -161,20 +171,18 @@
             <div class="form-group">
                 <label for="ct-department-input">Τμήμα</label>
                 <div class="combobox" id="ct-department-combobox">
-                    <input type="text" id="ct-department-input" autocomplete="off" placeholder="Πληκτρολογήστε για αναζήτηση τμήματος…">
-                    <select id="ct-department" th:field="*{departmentId}" hidden="hidden">
-                        <option value="">Επιλέξτε τμήμα</option>
-                        <option th:each="d : ${departments}" th:value="${d.id}" th:text="${d.name}"></option>
-                    </select>
+                    <input type="text" id="ct-department-input" th:field="*{departmentName}" autocomplete="off"
+                           placeholder="Πληκτρολογήστε όνομα τμήματος — νέο τμήμα δημιουργείται αυτόματα">
                     <ul class="combobox-options" id="ct-department-options" hidden="hidden"></ul>
                 </div>
-                <span class="field-error" th:if="${#fields.hasErrors('departmentId')}" th:errors="*{departmentId}"></span>
-            </div>
-
-            <div class="form-group">
-                <label for="ct-ip">Διεύθυνση IP</label>
-                <input type="text" id="ct-ip" th:field="*{ipAddress}" placeholder="Προαιρετικό" autocomplete="off">
-                <span class="field-error" th:if="${#fields.hasErrors('ipAddress')}" th:errors="*{ipAddress}"></span>
+                <!-- #ct-department itself is not part of this form — a pure id→name
+                     data source that both the suggestions above and the ticket-detail
+                     "edit info" form (still department-by-id) read/clone from.
+                     See wireFreeTextCombobox and wireInfoEdit in tickets.js. -->
+                <select id="ct-department" hidden="hidden">
+                    <option th:each="d : ${departments}" th:value="${d.id}" th:text="${d.name}"></option>
+                </select>
+                <span class="field-error" th:if="${#fields.hasErrors('departmentName')}" th:errors="*{departmentName}"></span>
             </div>
 
             <div class="form-group">
@@ -195,12 +203,9 @@
             </div>
 
             <div class="form-group">
-                <label for="ct-assignee">Αναθέστε αλλού <span class="required-mark">*</span></label>
-                <select id="ct-assignee" th:field="*{assignedUserId}" required="required">
-                    <option th:each="u : ${users}" th:value="${u.id}"
-                            th:text="${u.specialization} ? ${u.username} + ' (' + ${u.specialization} + ')' : ${u.username}"></option>
-                </select>
-                <span class="field-error" th:if="${#fields.hasErrors('assignedUserId')}" th:errors="*{assignedUserId}"></span>
+                <label for="ct-ip">Διεύθυνση IP</label>
+                <input type="text" id="ct-ip" th:field="*{ipAddress}" placeholder="Προαιρετικό" autocomplete="off">
+                <span class="field-error" th:if="${#fields.hasErrors('ipAddress')}" th:errors="*{ipAddress}"></span>
             </div>
 
             <div class="form-group">
@@ -222,17 +227,31 @@
                 <textarea id="ct-description" th:field="*{description}" placeholder="Περιγράψτε το πρόβλημα αναλυτικά…" autocomplete="off"></textarea>
                 <span class="field-error" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></span>
             </div>
-
-            <div class="form-group">
-                <label for="ct-resolution">Λύση (προαιρετικό)</label>
-                <textarea id="ct-resolution" th:field="*{resolution}" placeholder="Αν συμπληρωθεί, το ticket θα δημιουργηθεί ως επιλυμένο…" autocomplete="off"></textarea>
-                <span class="field-error" th:if="${#fields.hasErrors('resolution')}" th:errors="*{resolution}"></span>
-            </div>
         </div>
         <div class="modal-footer">
-            <button type="submit" name="action" value="open" class="btn btn-primary">Άνοιγμα Ticket</button>
-            <button type="submit" th:formaction="@{/tickets/callback}" formnovalidate="formnovalidate" class="btn"
-                    title="Ο καλών ζητάει μόνο επιστροφή κλήσης — αγνοεί τμήμα/κατηγορία/λύση">↺ Callback</button>
+            <div class="form-group ct-candidates-footer-group">
+                <label for="ct-candidates-input">Προσφορά σε <span class="required-mark">*</span>
+                    <span class="label-toolbar">
+                        <button type="button" class="combobox-clear-btn" id="ct-candidates-clear" title="Καθαρισμός" aria-label="Καθαρισμός">✕</button>
+                        <button type="button" class="combobox-broadcast-btn" id="ct-candidates-broadcast" title="Προσφορά σε όλους" aria-label="Προσφορά σε όλους">📢</button>
+                    </span>
+                </label>
+                <div class="combobox-chips" id="ct-candidates-chips"></div>
+                <div class="combobox" id="ct-candidates-combobox">
+                    <input type="text" id="ct-candidates-input" autocomplete="off" placeholder="Πληκτρολογήστε για αναζήτηση χρήστη…">
+                    <select id="ct-candidates" th:field="*{candidateUserIds}" multiple="multiple" hidden="hidden">
+                        <option th:each="u : ${users}" th:value="${u.id}"
+                                th:text="${u.specialization} ? ${u.username} + ' (' + ${u.specialization} + ')' : ${u.username}"></option>
+                    </select>
+                    <ul class="combobox-options" id="ct-candidates-options" hidden="hidden"></ul>
+                </div>
+                <span class="field-error" th:if="${#fields.hasErrors('candidateUserIds')}" th:errors="*{candidateUserIds}"></span>
+            </div>
+            <div class="create-ticket-buttons">
+                <button type="submit" name="action" value="open" class="btn btn-primary">Άνοιγμα Ticket</button>
+                <button type="submit" th:formaction="@{/tickets/callback}" formnovalidate="formnovalidate" class="btn"
+                        title="Ο καλών ζητάει μόνο επιστροφή κλήσης — αγνοεί τμήμα/κατηγορία/λύση">↺ Επιστροφή Κλήσης</button>
+            </div>
         </div>
     </form>
 </dialog>

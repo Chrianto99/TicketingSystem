@@ -4,17 +4,23 @@ import com.Chrianto.TicketingSystem.entity.enums.TicketPriority;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
+import java.util.List;
+
 @Getter @Setter
 public class TicketCreateRequest {
-    @NotNull(message = "Ο ανάδοχος χρήστης είναι υποχρεωτικός")
-    private Long assignedUserId;
+    // A new ticket is always offered, never directly assigned — even a single
+    // person still has to claim it. Non-empty is enforced manually (not
+    // @NotEmpty) so the error message can be composed alongside other checks.
+    private List<Long> candidateUserIds;
 
     private String callerName;
 
     @NotBlank(message = "Ο αριθμός τηλεφώνου είναι υποχρεωτικός")
     private String phoneNumber;
 
-    private Long departmentId;
+    // Free text rather than an FK — a name that doesn't match an existing
+    // department creates one on the fly (see TicketService#createTicket).
+    private String departmentName;
 
     @NotNull(message = "Η κατηγορία βλάβης είναι υποχρεωτική")
     private Long categoryId;

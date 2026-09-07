@@ -17,6 +17,6 @@ public class Department {
     @Column(nullable = false)
     private boolean isActive;
 
-    @Column(name = "g_code")
-    private String code;
+    @Column(name = "location")
+    private String location;
 }

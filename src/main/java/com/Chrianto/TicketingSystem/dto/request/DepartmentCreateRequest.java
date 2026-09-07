@@ -8,5 +8,5 @@ public class DepartmentCreateRequest {
     @NotBlank(message = "Το όνομα είναι υποχρεωτικό")
     private String name;
 
-    private String code;
+    private String location;
 }

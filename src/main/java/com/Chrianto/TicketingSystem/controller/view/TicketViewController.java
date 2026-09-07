@@ -34,6 +34,7 @@ import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Controller
@@ -80,9 +81,18 @@ public class TicketViewController {
                                 @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
                                 @AuthenticationPrincipal User currentUser,
                                 Model model) {
+        boolean hasCandidates = req.getCandidateUserIds() != null && !req.getCandidateUserIds().isEmpty();
+        if (!hasCandidates) {
+            bindingResult.rejectValue("candidateUserIds", "candidates.required",
+                    "Απαιτείται τουλάχιστον ένας υποψήφιος χρήστης");
+        }
         if (req.getResolution() != null && !req.getResolution().isBlank() && req.getSubcategoryId() == null) {
             bindingResult.rejectValue("subcategoryId", "resolution.requiresSubcategory",
                     "Απαιτείται υποκατηγορία για την επίλυση ενός ticket");
+        }
+        if (req.getResolution() != null && !req.getResolution().isBlank() && hasCandidates && req.getCandidateUserIds().size() != 1) {
+            bindingResult.rejectValue("resolution", "resolution.requiresSingleCandidate",
+                    "Ένα επιλυμένο ticket πρέπει να έχει ακριβώς έναν χρήστη");
         }
         if (bindingResult.hasErrors()) {
             populateListData(model, resolveStatusFilter(status), priority, source, resolveScopeFilter(scope), query, currentUser, pageable);
@@ -141,13 +151,14 @@ public class TicketViewController {
                                  @Valid @ModelAttribute("commentRequest") TicketChangeStatusRequest req,
                                  BindingResult bindingResult,
                                  @AuthenticationPrincipal User currentUser,
-                                 RedirectAttributes redirectAttributes) {
+                                 RedirectAttributes redirectAttributes,
+                                 HttpServletRequest request) {
         if (bindingResult.hasErrors()) {
             flashValidationErrors(bindingResult, redirectAttributes);
-            return "redirect:/tickets?openTicket=" + ticketId;
+            return "redirect:" + withOpenTicket(refererOrFallback(request), ticketId);
         }
         ticketService.resolveTicket(ticketId, req, currentUser);
-        return "redirect:/tickets";
+        return "redirect:" + refererOrFallback(request);
     }
 
     @PostMapping("/{ticketId}/cancel")
@@ -199,6 +210,11 @@ public class TicketViewController {
                                    BindingResult bindingResult,
                                    @AuthenticationPrincipal User currentUser,
                                    RedirectAttributes redirectAttributes) {
+        // commentText has no Bean Validation constraint anymore — it's optional
+        // for cancel/reopen but still mandatory here, so this checks it itself.
+        if (req.getCommentText() == null || req.getCommentText().isBlank()) {
+            bindingResult.rejectValue("commentText", "NotBlank", "Το σχόλιο είναι υποχρεωτικό");
+        }
         if (bindingResult.hasErrors()) {
             flashValidationErrors(bindingResult, redirectAttributes);
             return "redirect:/tickets?openTicket=" + ticketId;
@@ -236,6 +252,20 @@ public class TicketViewController {
         return "redirect:/tickets";
     }
 
+    @PostMapping("/{ticketId}/offer")
+    public String offerTicket(@PathVariable Long ticketId,
+                               @RequestParam(required = false) List<Long> candidateUserIds,
+                               @AuthenticationPrincipal User currentUser) {
+        ticketService.offerTicketToCandidates(ticketId, candidateUserIds, currentUser);
+        return "redirect:/tickets?openTicket=" + ticketId;
+    }
+
+    @PostMapping("/{ticketId}/claim")
+    public String claimTicket(@PathVariable Long ticketId, @AuthenticationPrincipal User currentUser) {
+        ticketService.claimTicket(ticketId, currentUser);
+        return "redirect:/tickets?openTicket=" + ticketId;
+    }
+
     @PostMapping("/{ticketId}/delete")
     @PreAuthorize("hasRole('ADMIN')")
     public String deleteTicket(@PathVariable Long ticketId) {
@@ -253,12 +283,20 @@ public class TicketViewController {
     private void populateListData(Model model, TicketStatus status, TicketPriority priority, TicketSource source,
                                    String scope, String query, User currentUser, Pageable pageable) {
         Long assignedToUserId = "assigned".equals(scope) ? currentUser.getId() : null;
+        // Read the flag before clearing it — markSeen() must run after, or every
+        // visit to "Τα Tickets μου" (the default landing scope) would clear the
+        // flag and then immediately read it back as false in the same request,
+        // so the dot could never actually be seen.
+        model.addAttribute("hasUnseenAssignedTickets", notificationService.hasUnseenAssignedTickets(currentUser.getId()));
         if ("assigned".equals(scope)) {
             notificationService.markSeen(currentUser.getId());
         }
-        model.addAttribute("hasUnseenAssignedTickets", notificationService.hasUnseenAssignedTickets(currentUser.getId()));
-        model.addAttribute("ticketPage", ticketService.getAllTickets(status, priority,
-                null, assignedToUserId, source, query, pageable));
+        // "My Tickets" also surfaces tickets offered to me as an unclaimed candidate,
+        // not just ones directly assigned to me — a plain assignedToUserId filter
+        // would miss those, so this scope uses its own query.
+        model.addAttribute("ticketPage", "assigned".equals(scope)
+                ? ticketService.getTicketsAssignedOrCandidate(currentUser.getId(), status, priority, source, query, pageable)
+                : ticketService.getAllTickets(status, priority, null, assignedToUserId, source, query, pageable));
         model.addAttribute("query", query);
         model.addAttribute("status", status);
         // status/scope are null here when the filter means "show everything" (needed for the
@@ -288,11 +326,12 @@ public class TicketViewController {
         return TicketStatus.valueOf(status);
     }
 
-    // No scope param means the page was reached fresh (e.g. nav link) — default to "assigned"
-    // (My Tickets). An explicit "all" is how the All Tickets tab asks to see everyone's tickets.
+    // No scope param means the page was reached fresh (e.g. nav link) — default to
+    // null ("all", see populateListData). An explicit "assigned" is how the My
+    // Tickets tab asks to see just this user's own tickets.
     private String resolveScopeFilter(String scope) {
         if (scope == null || scope.isBlank()) {
-            return "assigned";
+            return null;
         }
         if ("all".equalsIgnoreCase(scope)) {
             return null;
@@ -303,10 +342,10 @@ public class TicketViewController {
     private void populateCreateFormData(Model model, User currentUser) {
         model.addAttribute("departments", departmentService.getAllDepartments().stream().filter(DepartmentResponse::isActive).toList());
         model.addAttribute("categories", categoryService.getAllCategories().stream().filter(CategoryResponse::isActive).toList());
-        model.addAttribute("users", userService.getAllUsers());
+        model.addAttribute("users", userService.getAllActiveUsers());
         if (!model.containsAttribute("ticketCreateRequest")) {
             TicketCreateRequest req = new TicketCreateRequest();
-            req.setAssignedUserId(currentUser.getId());
+            req.setCandidateUserIds(List.of(currentUser.getId()));
             req.setPriority(TicketPriority.MEDIUM);
             model.addAttribute("ticketCreateRequest", req);
         }

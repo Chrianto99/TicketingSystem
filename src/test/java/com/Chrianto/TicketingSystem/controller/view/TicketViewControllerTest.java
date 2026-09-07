@@ -81,6 +81,10 @@ class TicketViewControllerTest {
         // renders the ticket table, so getAllTickets must be stubbed for every test.
         when(ticketService.getAllTickets(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));
+        // Default scope ("assigned" / "My Tickets") now queries this method instead,
+        // since it also has to surface tickets offered to the user as a candidate.
+        when(ticketService.getTicketsAssignedOrCandidate(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of()));
     }
 
     @Test
@@ -118,7 +122,29 @@ class TicketViewControllerTest {
         mockMvc.perform(post("/tickets")
                         .with(user(currentUser))
                         .with(csrf())
-                        .param("assignedUserId", "1")
+                        .param("candidateUserIds", "1")
+                        .param("summary", "Printer is on fire")
+                        .param("callerName", "Jane Doe")
+                        .param("phoneNumber", "6912345678")
+                        .param("departmentId", "1")
+                        .param("categoryId", "1")
+                        .param("priority", "HIGH")
+                        .param("description", "Initial report"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/tickets"));
+
+        verify(ticketService).createTicket(any(TicketCreateRequest.class), eq(currentUser));
+    }
+
+    @Test
+    void createTicket_withMultipleCandidates_createsTicketAndRedirectsToList() throws Exception {
+        TicketResponse response = TicketResponse.builder().id(9L).build();
+        when(ticketService.createTicket(any(TicketCreateRequest.class), eq(currentUser))).thenReturn(response);
+
+        mockMvc.perform(post("/tickets")
+                        .with(user(currentUser))
+                        .with(csrf())
+                        .param("candidateUserIds", "2", "3")
                         .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
@@ -137,7 +163,7 @@ class TicketViewControllerTest {
         mockMvc.perform(post("/tickets")
                         .with(user(currentUser))
                         .with(csrf())
-                        .param("assignedUserId", "1")
+                        .param("candidateUserIds", "1")
                         .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
@@ -157,7 +183,7 @@ class TicketViewControllerTest {
         mockMvc.perform(post("/tickets")
                         .with(user(currentUser))
                         .with(csrf())
-                        .param("assignedUserId", "1")
+                        .param("candidateUserIds", "1")
                         .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
@@ -174,6 +200,31 @@ class TicketViewControllerTest {
     }
 
     @Test
+    void createTicket_withResolutionAndMultipleCandidates_reRendersFormWithFieldErrorAndDoesNotCreate() throws Exception {
+        // A resolved-on-creation ticket needs exactly one person credited with
+        // resolving it — there's no "claim" step for something already done, so
+        // this combination (resolution + more than one candidate) is rejected.
+        mockMvc.perform(post("/tickets")
+                        .with(user(currentUser))
+                        .with(csrf())
+                        .param("candidateUserIds", "1", "2")
+                        .param("summary", "Printer is on fire")
+                        .param("callerName", "Jane Doe")
+                        .param("phoneNumber", "6912345678")
+                        .param("departmentId", "1")
+                        .param("categoryId", "1")
+                        .param("subcategoryId", "2")
+                        .param("priority", "HIGH")
+                        .param("description", "Initial report")
+                        .param("resolution", "Replaced the toner cartridge"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("tickets/list"))
+                .andExpect(model().attributeHasFieldErrors("ticketCreateRequest", "resolution"));
+
+        verify(ticketService, never()).createTicket(any(), any());
+    }
+
+    @Test
     void createTicket_withResolutionAndSubcategory_createsTicketAndRedirectsToDetail() throws Exception {
         TicketResponse response = TicketResponse.builder().id(43L).build();
         when(ticketService.createTicket(any(TicketCreateRequest.class), eq(currentUser))).thenReturn(response);
@@ -181,7 +232,7 @@ class TicketViewControllerTest {
         mockMvc.perform(post("/tickets")
                         .with(user(currentUser))
                         .with(csrf())
-                        .param("assignedUserId", "1")
+                        .param("candidateUserIds", "1")
                         .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
@@ -198,11 +249,11 @@ class TicketViewControllerTest {
     }
 
     @Test
-    void createTicket_missingAssignedUser_reRendersFormWithFieldErrorAndDoesNotCreate() throws Exception {
+    void createTicket_missingCandidates_reRendersFormWithFieldErrorAndDoesNotCreate() throws Exception {
         mockMvc.perform(post("/tickets")
                         .with(user(currentUser))
                         .with(csrf())
-                        // assignedUserId intentionally omitted
+                        // candidateUserIds intentionally omitted
                         .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
@@ -212,7 +263,7 @@ class TicketViewControllerTest {
                         .param("description", "Initial report"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("tickets/list"))
-                .andExpect(model().attributeHasFieldErrors("ticketCreateRequest", "assignedUserId"));
+                .andExpect(model().attributeHasFieldErrors("ticketCreateRequest", "candidateUserIds"));
 
         verify(ticketService, never()).createTicket(any(), any());
     }
@@ -222,7 +273,7 @@ class TicketViewControllerTest {
         mockMvc.perform(post("/tickets")
                         .with(user(currentUser))
                         .with(csrf())
-                        .param("assignedUserId", "1")
+                        .param("candidateUserIds", "1")
                         .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
@@ -246,7 +297,7 @@ class TicketViewControllerTest {
         mockMvc.perform(post("/tickets")
                         .with(user(currentUser))
                         .with(csrf())
-                        .param("assignedUserId", "1")
+                        .param("candidateUserIds", "1")
                         .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
@@ -265,7 +316,7 @@ class TicketViewControllerTest {
     void createTicket_withoutAuthentication_redirectsToLoginAndDoesNotCreate() throws Exception {
         mockMvc.perform(post("/tickets")
                         .with(csrf())
-                        .param("assignedUserId", "1")
+                        .param("candidateUserIds", "1")
                         .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
@@ -283,7 +334,7 @@ class TicketViewControllerTest {
     void createTicket_withoutCsrfToken_isForbiddenAndDoesNotCreate() throws Exception {
         mockMvc.perform(post("/tickets")
                         .with(user(currentUser))
-                        .param("assignedUserId", "1")
+                        .param("candidateUserIds", "1")
                         .param("summary", "Printer is on fire")
                         .param("callerName", "Jane Doe")
                         .param("phoneNumber", "6912345678")
@@ -339,15 +390,18 @@ class TicketViewControllerTest {
     }
 
     @Test
-    void cancelTicket_withBlankComment_redirectsBackToTicketWithoutCancelling() throws Exception {
+    void cancelTicket_withBlankComment_cancelsAnyway() throws Exception {
+        when(ticketService.cancelTicket(eq(5L), any(TicketChangeStatusRequest.class), eq(currentUser)))
+                .thenReturn(TicketResponse.builder().id(5L).build());
+
         mockMvc.perform(post("/tickets/5/cancel")
                         .with(user(currentUser))
                         .with(csrf())
                         .param("commentText", ""))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/tickets?openTicket=5"));
+                .andExpect(redirectedUrl("/tickets"));
 
-        verify(ticketService, never()).cancelTicket(any(), any(), any());
+        verify(ticketService).cancelTicket(eq(5L), any(TicketChangeStatusRequest.class), eq(currentUser));
     }
 
     @Test
@@ -366,15 +420,18 @@ class TicketViewControllerTest {
     }
 
     @Test
-    void reopenTicket_withBlankComment_redirectsBackToTicketWithoutReopening() throws Exception {
+    void reopenTicket_withBlankComment_reopensAnyway() throws Exception {
+        when(ticketService.reopenTicket(eq(5L), any(TicketChangeStatusRequest.class), eq(currentUser)))
+                .thenReturn(TicketResponse.builder().id(5L).build());
+
         mockMvc.perform(post("/tickets/5/reopen")
                         .with(user(currentUser))
                         .with(csrf())
                         .param("commentText", ""))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/tickets?openTicket=5"));
+                .andExpect(redirectedUrl("/tickets"));
 
-        verify(ticketService, never()).reopenTicket(any(), any(), any());
+        verify(ticketService).reopenTicket(eq(5L), any(TicketChangeStatusRequest.class), eq(currentUser));
     }
 
     @Test

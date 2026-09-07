@@ -1,12 +1,13 @@
 package com.Chrianto.TicketingSystem.dto.request;
 
-import jakarta.validation.constraints.*;
 import lombok.*;
 
+// Shared by resolve/cancel/reopen/comment — whether commentText is required
+// differs per action (mandatory for resolve/comment, optional for cancel/
+// reopen), so that's enforced in TicketService rather than here.
 @Getter @Setter
 public class TicketChangeStatusRequest {
 
-    @NotBlank(message = "Το σχόλιο είναι υποχρεωτικό")
     private String commentText;
 
     private Long subcategoryId;

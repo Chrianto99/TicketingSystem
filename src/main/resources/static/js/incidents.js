@@ -17,6 +17,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // cross-page navigation instead of popping an empty dialog.
     window.openCreateTicketModal = null;
 
+    // Same searchable multi-select chips behavior as the ticket create form's
+    // candidates field — wireMultiCombobox is defined in tickets.js, which is
+    // loaded on this page too (for the embedded ticket modal). An incident-derived
+    // ticket is offered to candidates just like a regular one, not directly assigned.
+    if (window.wireMultiCombobox) {
+        window.wireMultiCombobox('it-candidates-input', 'it-candidates', 'it-candidates-options', 'it-candidates-chips', 'it-candidates-broadcast', 'it-candidates-clear');
+    }
+
     // New-incident form starts collapsed behind a button; clicking it swaps the
     // button out for the form, and the form's own "Ακύρωση" button swaps back.
     var createToggle = document.getElementById('incident-create-toggle');

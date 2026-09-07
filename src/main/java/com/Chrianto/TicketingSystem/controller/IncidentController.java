@@ -60,14 +60,16 @@ public class IncidentController {
 
     @PatchMapping("/{incidentId}/close")
     public ResponseEntity<IncidentResponse> closeIncident(@PathVariable Long incidentId,
+                                                            @Valid @RequestBody IncidentCommentCreateRequest req,
                                                             @AuthenticationPrincipal User currentUser) {
-        return ResponseEntity.ok(incidentService.closeIncident(incidentId, currentUser));
+        return ResponseEntity.ok(incidentService.closeIncident(incidentId, req, currentUser));
     }
 
     @PatchMapping("/{incidentId}/reopen")
     public ResponseEntity<IncidentResponse> reopenIncident(@PathVariable Long incidentId,
+                                                             @Valid @RequestBody IncidentCommentCreateRequest req,
                                                              @AuthenticationPrincipal User currentUser) {
-        return ResponseEntity.ok(incidentService.reopenIncident(incidentId, currentUser));
+        return ResponseEntity.ok(incidentService.reopenIncident(incidentId, req, currentUser));
     }
 
     @PostMapping("/{incidentId}/comments")

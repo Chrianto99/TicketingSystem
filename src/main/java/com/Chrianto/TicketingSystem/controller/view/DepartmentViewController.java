@@ -51,8 +51,8 @@ public class DepartmentViewController {
     @PostMapping("/{departmentId}/edit")
     @PreAuthorize("hasRole('ADMIN')")
     public String editDepartment(@PathVariable Long departmentId, @RequestParam String name,
-                                  @RequestParam(required = false) String code) {
-        departmentService.updateDepartment(departmentId, name, code);
+                                  @RequestParam(required = false) String location) {
+        departmentService.updateDepartment(departmentId, name, location);
         return "redirect:/departments";
     }
 

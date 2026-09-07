@@ -25,10 +25,35 @@ public class NotificationService {
 
     public SseEmitter subscribe(Long userId) {
         SseEmitter emitter = new SseEmitter(0L);
-        emitters.computeIfAbsent(userId, id -> new CopyOnWriteArrayList<>()).add(emitter);
+        List<SseEmitter> list = emitters.computeIfAbsent(userId, id -> new CopyOnWriteArrayList<>());
+
+        // Every page load opens a fresh EventSource (this is a multi-page app,
+        // not an SPA — there's no single persistent connection to reuse across
+        // navigations), and the browser's "abort the old one on unload" isn't
+        // instant. Rapid tab/filter switching was piling up emitters faster
+        // than they were being torn down, eventually exhausting the server's
+        // connection capacity. A user only ever needs one live stream, so
+        // evict whatever was there before adding the new one — caps this at
+        // one per user no matter how fast someone clicks.
+        list.forEach(SseEmitter::complete);
+        list.clear();
+        list.add(emitter);
+
         emitter.onCompletion(() -> unregister(userId, emitter));
         emitter.onTimeout(() -> unregister(userId, emitter));
         emitter.onError(ex -> unregister(userId, emitter));
+
+        // Without writing anything, the response (headers included) can sit
+        // buffered server-side indefinitely — the browser's EventSource never
+        // reports the connection as open, and there's no client-visible signal
+        // that a subscribe actually succeeded versus silently failing. A
+        // comment line is invisible to EventSource's event parsing but forces
+        // the flush.
+        try {
+            emitter.send(SseEmitter.event().comment("connected"));
+        } catch (IOException e) {
+            unregister(userId, emitter);
+        }
         return emitter;
     }
 
@@ -53,7 +78,10 @@ public class NotificationService {
         for (SseEmitter emitter : list) {
             try {
                 emitter.send(SseEmitter.event().name("ticket-assigned").data("assigned"));
-            } catch (IOException e) {
+            } catch (IOException | IllegalStateException e) {
+                // IllegalStateException: the emitter completed (e.g. evicted by a
+                // newer subscribe() for the same user) between the list snapshot
+                // above and this send() call.
                 unregister(userId, emitter);
             }
         }

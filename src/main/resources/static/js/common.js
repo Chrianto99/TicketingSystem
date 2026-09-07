@@ -1,5 +1,36 @@
 // Shared confirm/error modals, available on every page via fragments/nav :: modals.
 (function () {
+    // Body scroll lock: native <dialog>.showModal() doesn't stop the page behind
+    // it from scrolling on its own, so without this the background remains
+    // scrollable while a modal is open. Patched once here instead of wiring it
+    // per dialog per page, so every <dialog> everywhere is covered automatically.
+    // A counter (not a boolean) handles one modal opening on top of another
+    // (e.g. the ticket modal's action-modal) without unlocking too early.
+    (function () {
+        var openDialogCount = 0;
+        var nativeShowModal = HTMLDialogElement.prototype.showModal;
+
+        HTMLDialogElement.prototype.showModal = function () {
+            openDialogCount++;
+            document.body.style.overflow = 'hidden';
+            return nativeShowModal.apply(this, arguments);
+        };
+
+        // The native 'close' event fires however the dialog closed — .close(),
+        // the Escape key, or a method="dialog" form submit — so this catches
+        // every case without each call site reporting back separately. It
+        // doesn't bubble, but capturing still reaches a document-level listener.
+        document.addEventListener('close', function (e) {
+            if (e.target.tagName !== 'DIALOG') {
+                return;
+            }
+            openDialogCount = Math.max(0, openDialogCount - 1);
+            if (openDialogCount === 0) {
+                document.body.style.overflow = '';
+            }
+        }, true);
+    })();
+
     function showError(message) {
         var modal = document.getElementById('error-modal');
         if (!modal) {
@@ -109,6 +140,23 @@
                 var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
                 document.documentElement.setAttribute('data-theme', next);
                 localStorage.setItem('theme', next);
+            });
+        }
+
+        // Chrome (and most browsers) silently ignore Notification.requestPermission()
+        // unless it's called from a real user gesture — calling it on page load
+        // never shows the actual prompt, it just leaves permission stuck at
+        // "default" forever. So this button is the only place that ever asks.
+        var notifToggle = document.getElementById('notifications-toggle');
+        if (notifToggle && window.Notification) {
+            notifToggle.hidden = Notification.permission !== 'default';
+            notifToggle.addEventListener('click', function () {
+                Notification.requestPermission().then(function (permission) {
+                    notifToggle.hidden = permission !== 'default';
+                    if (permission === 'denied') {
+                        showError('Οι ειδοποιήσεις απορρίφθηκαν. Μπορείτε να τις ενεργοποιήσετε ξανά από τις ρυθμίσεις του browser για αυτόν τον ιστότοπο.');
+                    }
+                });
             });
         }
 

@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "ticket")
@@ -24,6 +26,15 @@ public class Ticket {
 
     @ManyToOne @JoinColumn(name = "assigned_user_id")
     private User assignedUser;
+
+    // Offer pool for the "assign to multiple, first to claim gets it" flow —
+    // populated only while the ticket is up for grabs (assignedUser is null in
+    // that state); cleared as soon as someone claims it or gets assigned directly.
+    @ManyToMany
+    @JoinTable(name = "ticket_candidate",
+            joinColumns = @JoinColumn(name = "ticket_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id"))
+    private List<User> candidates = new ArrayList<>();
 
     @ManyToOne @JoinColumn(name = "department_id")
     private Department department;

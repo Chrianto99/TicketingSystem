@@ -32,15 +32,9 @@
             <div class="ticket-action-buttons">
                 <button type="button" id="ir-edit-btn" class="icon-btn" title="Επεξεργασία" aria-label="Επεξεργασία"
                         th:hidden="${#fields.hasErrors('incidentUpdateRequest.*')}">&#9998;</button>
-                <form method="post" th:action="@{/incidents/{id}/close(id=${incident.id})}" th:if="${incident.status.name() == 'OPEN'}"
-                      data-confirm="Κλείσιμο αυτού του συμβάντος;">
-                    <button type="submit" class="btn btn-danger">Κλείσιμο Συμβάντος</button>
-                </form>
-                <form method="post" th:action="@{/incidents/{id}/reopen(id=${incident.id})}" th:unless="${incident.status.name() == 'OPEN'}">
-                    <button type="submit" class="btn btn-primary">↺ Επανάνοιγμα</button>
-                </form>
             </div>
         </div>
+
         <form id="ir-edit-form" th:object="${incidentUpdateRequest}" method="post" th:action="@{/incidents/{id}/edit(id=${incident.id})}" class="ticket-form">
             <div class="form-group">
                 <label for="ir-subject">Θέμα</label>
@@ -94,15 +88,20 @@
             <div class="timeline" th:unless="${comments.isEmpty()}">
                 <div th:each="c : ${comments}">
                     <div class="timeline-item timeline-item-plain" th:id="'comment-view-' + ${c.id}">
-                        <p class="timeline-text">Ο χρήστης <strong th:text="${c.authorUsername} ?: 'Διαγραμμένος χρήστης'"></strong> ανέφερε:</p>
-                        <p class="timeline-quote" th:text="'“' + ${c.text} + '”'"></p>
-                        <p class="timeline-time" th:text="${#temporals.format(c.timestamp, 'dd/MM/yyyy HH:mm')}"></p>
-                        <div class="ticket-action-buttons" th:if="${c.authorId == #authentication.principal.id}">
-                            <button type="button" class="icon-btn comment-edit-btn" th:attr="data-comment-id=${c.id}" title="Επεξεργασία" aria-label="Επεξεργασία">&#9998;</button>
-                            <form method="post" th:action="@{/incidents/{incidentId}/comments/{commentId}/delete(incidentId=${incident.id},commentId=${c.id})}" data-confirm="Διαγραφή αυτής της αναφοράς;">
-                                <button type="submit" class="icon-btn" title="Διαγραφή" aria-label="Διαγραφή">&#10005;</button>
-                            </form>
+                        <div class="comment-header">
+                            <span class="comment-avatar" th:text="${c.authorUsername != null ? #strings.toUpperCase(#strings.substring(c.authorUsername, 0, 1)) : '?'}"></span>
+                            <p class="timeline-text">Ο χρήστης <strong th:text="${c.authorUsername} ?: 'Διαγραμμένος χρήστης'"></strong> ανέφερε:</p>
                         </div>
+                        <div class="timeline-quote-wrap">
+                            <p class="timeline-quote" th:text="'“' + ${c.text} + '”'"></p>
+                            <th:block th:if="${c.authorId == #authentication.principal.id}">
+                                <button type="button" class="icon-btn comment-edit-btn" th:attr="data-comment-id=${c.id}" title="Επεξεργασία" aria-label="Επεξεργασία">&#9998;</button>
+                                <form method="post" th:action="@{/incidents/{incidentId}/comments/{commentId}/delete(incidentId=${incident.id},commentId=${c.id})}" data-confirm="Διαγραφή αυτής της αναφοράς;">
+                                    <button type="submit" class="icon-btn" title="Διαγραφή" aria-label="Διαγραφή">🗑</button>
+                                </form>
+                            </th:block>
+                        </div>
+                        <p class="timeline-time" th:text="${#temporals.format(c.timestamp, 'dd/MM/yyyy HH:mm')}"></p>
                     </div>
                     <form th:id="'comment-edit-form-' + ${c.id}" class="ticket-form comment-edit-form" method="post"
                           th:action="@{/incidents/{incidentId}/comments/{commentId}/edit(incidentId=${incident.id},commentId=${c.id})}"
@@ -118,13 +117,17 @@
                 </div>
             </div>
 
-            <form th:object="${incidentCommentCreateRequest}" method="post" th:action="@{/incidents/{id}/comments(id=${incident.id})}" class="ticket-form comment-compose" style="margin-top:20px;">
+            <form id="incident-compose-form" th:object="${incidentCommentCreateRequest}" method="post" th:action="@{/incidents/{id}/comments(id=${incident.id})}" class="ticket-form comment-compose" style="margin-top:20px;">
                 <div class="form-group">
-                    <textarea th:field="*{commentText}" placeholder="Γράψτε μια αναφορά…" required="required"></textarea>
+                    <textarea id="incident-compose-text" th:field="*{commentText}" placeholder="Γράψτε μια αναφορά…" required="required"></textarea>
                     <span class="field-error" th:if="${#fields.hasErrors('commentText')}" th:errors="*{commentText}"></span>
                 </div>
                 <div class="ticket-action-buttons">
                     <button type="submit" class="btn btn-success">Υποβολή</button>
+                    <button type="submit" class="btn btn-danger" th:formaction="@{/incidents/{id}/close(id=${incident.id})}"
+                            th:if="${incident.status.name() == 'OPEN'}">Κλείσιμο Συμβάντος</button>
+                    <button type="submit" class="btn btn-primary" th:formaction="@{/incidents/{id}/reopen(id=${incident.id})}"
+                            th:unless="${incident.status.name() == 'OPEN'}">↺ Επανάνοιγμα</button>
                 </div>
             </form>
         </div>
@@ -153,13 +156,22 @@
             <h3 style="margin-top:20px;">Δημιουργία Ticket από αυτό το Συμβάν</h3>
             <form th:object="${incidentTicketCreateRequest}" method="post" th:action="@{/incidents/{id}/tickets(id=${incident.id})}" class="ticket-form">
                 <div class="form-group">
-                    <label for="it-assignee">Ανάδοχος<span class="required-mark">*</span></label>
-                    <select id="it-assignee" th:field="*{assignedUserId}" required="required">
-                        <option value="">Επιλέξτε χρήστη</option>
-                        <option th:each="u : ${users}" th:value="${u.id}"
-                                th:text="${u.specialization} ? ${u.username} + ' (' + ${u.specialization} + ')' : ${u.username}"></option>
-                    </select>
-                    <span class="field-error" th:if="${#fields.hasErrors('assignedUserId')}" th:errors="*{assignedUserId}"></span>
+                    <label for="it-candidates-input">Προσφορά σε<span class="required-mark">*</span>
+                        <span class="label-toolbar">
+                            <button type="button" class="combobox-clear-btn" id="it-candidates-clear" title="Καθαρισμός" aria-label="Καθαρισμός">✕</button>
+                            <button type="button" class="combobox-broadcast-btn" id="it-candidates-broadcast" title="Προσφορά σε όλους" aria-label="Προσφορά σε όλους">📢</button>
+                        </span>
+                    </label>
+                    <div class="combobox-chips" id="it-candidates-chips"></div>
+                    <div class="combobox" id="it-candidates-combobox">
+                        <input type="text" id="it-candidates-input" autocomplete="off" placeholder="Πληκτρολογήστε για αναζήτηση χρήστη…">
+                        <select id="it-candidates" th:field="*{candidateUserIds}" multiple="multiple" hidden="hidden">
+                            <option th:each="u : ${users}" th:value="${u.id}"
+                                    th:text="${u.specialization} ? ${u.username} + ' (' + ${u.specialization} + ')' : ${u.username}"></option>
+                        </select>
+                        <ul class="combobox-options" id="it-candidates-options" hidden="hidden"></ul>
+                    </div>
+                    <span class="field-error" th:if="${#fields.hasErrors('candidateUserIds')}" th:errors="*{candidateUserIds}"></span>
                 </div>
 
                 <div class="form-group">
@@ -234,8 +246,7 @@
             <input type="hidden" name="_csrf" id="action-modal-csrf">
             <div class="form-group">
                 <label for="action-modal-comment" id="action-modal-comment-label">Σχόλιο</label>
-                <textarea id="action-modal-comment" name="commentText" required="required"></textarea>
-                <button type="button" class="resolution-suggestion" id="action-modal-suggestion">✓ Επιλύθηκε</button>
+                <textarea id="action-modal-comment" name="commentText"></textarea>
             </div>
         </div>
         <div class="modal-footer">

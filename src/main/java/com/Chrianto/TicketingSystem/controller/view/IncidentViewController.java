@@ -23,8 +23,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/incidents")
@@ -44,20 +48,26 @@ public class IncidentViewController {
     }
 
     @GetMapping
-    public String listIncidents(@RequestParam(required = false) IncidentStatus status,
+    public String listIncidents(@RequestParam(required = false) String status,
                                  @RequestParam(required = false) TicketPriority priority,
                                  @RequestParam(required = false) String query,
                                  @RequestParam(defaultValue = "0") int page,
                                  @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size,
                                  Model model) {
-        Page<IncidentResponse> incidentPage = incidentService.getAllIncidents(status, priority, query,
+        IncidentStatus resolvedStatus = resolveStatusFilter(status);
+        Page<IncidentResponse> incidentPage = incidentService.getAllIncidents(resolvedStatus, priority, query,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
 
         model.addAttribute("incidents", incidentPage.getContent());
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", Math.max(1, incidentPage.getTotalPages()));
         model.addAttribute("pageSize", size);
-        model.addAttribute("statusFilter", status);
+        model.addAttribute("statusFilter", resolvedStatus);
+        // resolvedStatus is null for "ALL", which a Thymeleaf @{} link drops
+        // entirely instead of round-tripping — statusParam carries the literal
+        // choice across pagination links instead.
+        model.addAttribute("statusParam", resolvedStatus == null ? "ALL" : resolvedStatus.name());
+        model.addAttribute("statusFilterActive", resolvedStatus != IncidentStatus.OPEN);
         model.addAttribute("priorityFilter", priority);
         model.addAttribute("query", query);
         model.addAttribute("statuses", IncidentStatus.values());
@@ -68,13 +78,29 @@ public class IncidentViewController {
         return "incidents/list";
     }
 
+    // No status param means the page was reached fresh (e.g. nav link) —
+    // default to OPEN, same convention as the Tickets page. The literal "ALL"
+    // sentinel (from the status <select>) means show every status.
+    private IncidentStatus resolveStatusFilter(String status) {
+        if (status == null || status.isBlank()) {
+            return IncidentStatus.OPEN;
+        }
+        if ("ALL".equalsIgnoreCase(status)) {
+            return null;
+        }
+        return IncidentStatus.valueOf(status);
+    }
+
     @PostMapping
     public String createIncident(@Valid @ModelAttribute("incidentCreateRequest") IncidentCreateRequest req,
                                   BindingResult bindingResult,
-                                  @AuthenticationPrincipal User currentUser) {
-        if (!bindingResult.hasErrors()) {
-            incidentService.createIncident(req, currentUser);
+                                  @AuthenticationPrincipal User currentUser,
+                                  RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/incidents";
         }
+        incidentService.createIncident(req, currentUser);
         return "redirect:/incidents";
     }
 
@@ -87,7 +113,7 @@ public class IncidentViewController {
         model.addAttribute("relatedTickets", incidentService.getTicketsForIncident(incidentId));
         model.addAttribute("attachments", attachmentService.getAttachmentsForIncident(incidentId));
         model.addAttribute("history", ticketHistoryService.getIncidentHistory(incidentId));
-        model.addAttribute("users", userService.getAllUsers());
+        model.addAttribute("users", userService.getAllActiveUsers());
         model.addAttribute("priorities", TicketPriority.values());
 
         if (!model.containsAttribute("incidentUpdateRequest")) {
@@ -110,22 +136,41 @@ public class IncidentViewController {
     public String editIncident(@PathVariable Long incidentId,
                                 @Valid @ModelAttribute("incidentUpdateRequest") IncidentUpdateRequest req,
                                 BindingResult bindingResult,
-                                @AuthenticationPrincipal User currentUser) {
-        if (!bindingResult.hasErrors()) {
-            incidentService.editIncident(incidentId, req, currentUser);
+                                @AuthenticationPrincipal User currentUser,
+                                RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/incidents/" + incidentId;
         }
+        incidentService.editIncident(incidentId, req, currentUser);
         return "redirect:/incidents/" + incidentId;
     }
 
     @PostMapping("/{incidentId}/close")
-    public String closeIncident(@PathVariable Long incidentId, @AuthenticationPrincipal User currentUser) {
-        incidentService.closeIncident(incidentId, currentUser);
+    public String closeIncident(@PathVariable Long incidentId,
+                                 @Valid @ModelAttribute("incidentCommentCreateRequest") IncidentCommentCreateRequest req,
+                                 BindingResult bindingResult,
+                                 @AuthenticationPrincipal User currentUser,
+                                 RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/incidents/" + incidentId;
+        }
+        incidentService.closeIncident(incidentId, req, currentUser);
         return "redirect:/incidents/" + incidentId;
     }
 
     @PostMapping("/{incidentId}/reopen")
-    public String reopenIncident(@PathVariable Long incidentId, @AuthenticationPrincipal User currentUser) {
-        incidentService.reopenIncident(incidentId, currentUser);
+    public String reopenIncident(@PathVariable Long incidentId,
+                                  @Valid @ModelAttribute("incidentCommentCreateRequest") IncidentCommentCreateRequest req,
+                                  BindingResult bindingResult,
+                                  @AuthenticationPrincipal User currentUser,
+                                  RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/incidents/" + incidentId;
+        }
+        incidentService.reopenIncident(incidentId, req, currentUser);
         return "redirect:/incidents/" + incidentId;
     }
 
@@ -133,10 +178,13 @@ public class IncidentViewController {
     public String addComment(@PathVariable Long incidentId,
                               @Valid @ModelAttribute("incidentCommentCreateRequest") IncidentCommentCreateRequest req,
                               BindingResult bindingResult,
-                              @AuthenticationPrincipal User currentUser) {
-        if (!bindingResult.hasErrors()) {
-            incidentService.addComment(incidentId, req, currentUser);
+                              @AuthenticationPrincipal User currentUser,
+                              RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/incidents/" + incidentId;
         }
+        incidentService.addComment(incidentId, req, currentUser);
         return "redirect:/incidents/" + incidentId;
     }
 
@@ -144,10 +192,13 @@ public class IncidentViewController {
     public String editComment(@PathVariable Long incidentId, @PathVariable Long commentId,
                                @Valid @ModelAttribute CommentUpdateRequest req,
                                BindingResult bindingResult,
-                               @AuthenticationPrincipal User currentUser) {
-        if (!bindingResult.hasErrors()) {
-            incidentService.editComment(commentId, req, currentUser);
+                               @AuthenticationPrincipal User currentUser,
+                               RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/incidents/" + incidentId;
         }
+        incidentService.editComment(commentId, req, currentUser);
         return "redirect:/incidents/" + incidentId;
     }
 
@@ -162,10 +213,20 @@ public class IncidentViewController {
     public String createTicketFromIncident(@PathVariable Long incidentId,
                                             @Valid @ModelAttribute("incidentTicketCreateRequest") IncidentTicketCreateRequest req,
                                             BindingResult bindingResult,
-                                            @AuthenticationPrincipal User currentUser) {
-        if (!bindingResult.hasErrors()) {
-            incidentService.createTicketFromIncident(incidentId, req, currentUser);
+                                            @AuthenticationPrincipal User currentUser,
+                                            RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            flashValidationErrors(bindingResult, redirectAttributes);
+            return "redirect:/incidents/" + incidentId;
         }
+        incidentService.createTicketFromIncident(incidentId, req, currentUser);
         return "redirect:/incidents/" + incidentId;
+    }
+
+    private void flashValidationErrors(BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+        String message = bindingResult.getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .collect(Collectors.joining(", "));
+        redirectAttributes.addFlashAttribute("errorMessage", message);
     }
 }

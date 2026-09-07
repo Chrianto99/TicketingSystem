@@ -51,14 +51,14 @@
                placeholder="Αναζήτηση με βάση θέμα..." th:value="${query}" autocomplete="off">
 
         <select name="status" onchange="this.form.submit()">
-            <option value="">Όλες οι καταστάσεις</option>
+            <option value="ALL" th:selected="${statusFilter == null}">Όλες οι καταστάσεις</option>
             <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.displayName}" th:selected="${s == statusFilter}"></option>
         </select>
         <select name="priority" onchange="this.form.submit()">
             <option value="">Όλες οι προτεραιότητες</option>
             <option th:each="p : ${priorities}" th:value="${p}" th:text="${p.displayName}" th:selected="${p == priorityFilter}"></option>
         </select>
-        <a th:if="${statusFilter != null or priorityFilter != null or not #strings.isEmpty(query)}"
+        <a th:if="${statusFilterActive or priorityFilter != null or not #strings.isEmpty(query)}"
            th:href="@{/incidents}" class="btn">Καθαρισμός φίλτρων</a>
     </form>
 
@@ -94,7 +94,7 @@
 
     <div class="pagination" th:if="${totalPages > 1}">
         <a th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
-           th:href="@{/incidents(page=${i}, size=${pageSize}, status=${statusFilter}, priority=${priorityFilter}, query=${query})}"
+           th:href="@{/incidents(page=${i}, size=${pageSize}, status=${statusParam}, priority=${priorityFilter}, query=${query})}"
            th:text="${i + 1}"
            th:classappend="${i == currentPage} ? ' active'"
            class="page-link"></a>

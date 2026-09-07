@@ -14,7 +14,7 @@ public enum TicketAction {
     COMMENT_REMOVED,
     ATTACHMENT_ADDED,
     ATTACHMENT_REMOVED,
-
-
+    OFFERED,
+    CLAIMED,
 
 }
